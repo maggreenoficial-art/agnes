@@ -14,6 +14,7 @@ import {
   sanitizeFileName,
 } from "@/lib/masks";
 import { LogoImperatriz, WindowDots } from "./Brand";
+import { AddressField } from "./AddressField";
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const PHOTO_SLOTS = [
@@ -371,17 +372,11 @@ export function InscricaoForm() {
                 onChange={(event) => update("telefone", maskPhone(event.target.value))}
               />
             </Field>
-            <div className="sm:col-span-2">
-              <Field label="Endereço atual" required error={errors.endereco}>
-                <input
-                  className={inputClass}
-                  autoComplete="street-address"
-                  placeholder="Rua, número, bairro, cidade"
-                  value={form.endereco}
-                  onChange={(event) => update("endereco", event.target.value)}
-                />
-              </Field>
-            </div>
+            <AddressField
+              value={form.endereco}
+              error={errors.endereco}
+              onChange={(value) => update("endereco", value)}
+            />
             <Field label="E-mail" required error={errors.email}>
               <input
                 type="email"
