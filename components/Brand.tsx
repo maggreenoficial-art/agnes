@@ -11,6 +11,25 @@ export function MixWordmark({ className = "" }: { className?: string }) {
   );
 }
 
+export function LogoMixModels({
+  className = "h-7 w-auto sm:h-8",
+  priority = false,
+}: {
+  className?: string;
+  priority?: boolean;
+}) {
+  return (
+    <Image
+      src="/logo-mixmodels.png"
+      alt="Mix Models Agency"
+      width={416}
+      height={62}
+      priority={priority}
+      className={`object-contain ${className}`}
+    />
+  );
+}
+
 export function LogoImperatriz({
   className = "size-12",
   priority = false,
@@ -38,6 +57,25 @@ export function InstitutoSeal({
   priority?: boolean;
 }) {
   return <LogoImperatriz className={className} priority={priority} />;
+}
+
+export function OfficialMarks({
+  className = "",
+  sealClassName = "size-14 sm:size-16",
+  mixClassName = "h-7 w-auto sm:h-8",
+  priority = false,
+}: {
+  className?: string;
+  sealClassName?: string;
+  mixClassName?: string;
+  priority?: boolean;
+}) {
+  return (
+    <div className={`flex items-center gap-2.5 sm:gap-3 ${className}`}>
+      <LogoMixModels className={mixClassName} priority={priority} />
+      <InstitutoSeal className={sealClassName} priority={priority} />
+    </div>
+  );
 }
 
 export function WindowDots() {

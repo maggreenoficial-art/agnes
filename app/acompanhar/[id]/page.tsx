@@ -1,6 +1,6 @@
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import { InstitutoSeal, MixWordmark, WindowDots } from "@/components/Brand";
+import { InstitutoSeal, MixWordmark, OfficialMarks, WindowDots } from "@/components/Brand";
 import { CopyLink } from "@/components/CopyLink";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { getAcompanhamento } from "@/lib/acompanhar";
@@ -96,9 +96,13 @@ export default async function AcompanharPage({
       <div className="absolute inset-0 bg-gradient-to-b from-green-deep/45 via-green-deep/60 to-green-deep/85" />
 
       <div className="relative flex min-h-svh flex-col px-5 py-10 sm:px-8">
-        <header className="mx-auto flex w-full max-w-xl items-center justify-between">
-          <MixWordmark className="text-xl text-white" />
-          <InstitutoSeal className="size-14" priority />
+        <header className="mx-auto flex w-full max-w-xl items-center justify-between gap-4">
+          <MixWordmark className="hidden text-xl text-white sm:inline" />
+          <OfficialMarks
+            priority
+            sealClassName="size-14"
+            mixClassName="h-7 w-auto"
+          />
         </header>
 
         <section className="relative mx-auto mt-16 mb-8 w-full max-w-xl pt-4">
@@ -116,16 +120,27 @@ export default async function AcompanharPage({
               </p>
               <h1 className="mt-3 font-display text-3xl font-semibold leading-snug sm:text-4xl">
                 {isNew
-                  ? "Seu primeiro passo foi dado."
+                  ? "Obrigada por participar da nossa seleção."
                   : isApproved
                     ? `${firstName}, você foi aprovada.`
                     : `Olá, ${firstName}.`}
               </h1>
-              <p className="mt-4 text-base leading-7 text-ink/65">
-                {isNew
-                  ? "Recebemos o seu perfil. Guarde este link para acompanhar se você foi para análise, aprovada ou não."
-                  : STATUS_PUBLIC_TEXT[perfil.status]}
-              </p>
+              <div className="mt-4 space-y-4 text-base leading-7 text-ink/65">
+                {isNew ? (
+                  <>
+                    <p>
+                      Seu cadastro foi recebido com sucesso e agora passará pela
+                      avaliação da equipe da MIX Models.
+                    </p>
+                    <p>
+                      Em breve, você receberá novas instruções sobre as próximas
+                      etapas da seleção.
+                    </p>
+                  </>
+                ) : (
+                  <p>{STATUS_PUBLIC_TEXT[perfil.status]}</p>
+                )}
+              </div>
 
               <div className="mt-8 rounded-2xl bg-cream p-5">
                 <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-ink/40">

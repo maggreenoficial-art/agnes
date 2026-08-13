@@ -1,14 +1,16 @@
 "use client";
 
 import { logoutAdmin } from "@/app/admin/actions";
-import { MixWordmark, LogoImperatriz } from "@/components/Brand";
+import { OfficialMarks } from "@/components/Brand";
 
 export function AdminHeader({ total }: { total: number }) {
   return (
     <header className="flex flex-wrap items-center justify-between gap-4">
       <div className="flex items-center gap-4">
-        <LogoImperatriz className="size-12 sm:size-14" />
-        <MixWordmark className="text-xl text-white" />
+        <OfficialMarks
+          sealClassName="size-12 sm:size-14"
+          mixClassName="h-6 w-auto sm:h-7"
+        />
         <div>
           <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-lime">
             Processo seletivo

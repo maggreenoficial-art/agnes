@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { InstitutoSeal, MixWordmark } from "@/components/Brand";
+import { MixWordmark, OfficialMarks } from "@/components/Brand";
 import { InscricaoForm } from "@/components/InscricaoForm";
 import {
   ENDERECO,
@@ -40,11 +40,11 @@ export default function Home() {
   return (
     <div className="min-h-full">
       <header className="absolute inset-x-0 top-0 z-20 flex items-center justify-between px-5 py-5 sm:px-8">
-        <MixWordmark className="text-lg text-white sm:text-2xl" />
-        <p className="hidden text-[11px] font-semibold uppercase tracking-[0.28em] text-white/80 sm:block">
+        <MixWordmark className="hidden text-lg text-white sm:block sm:text-2xl" />
+        <p className="hidden text-[11px] font-semibold uppercase tracking-[0.28em] text-white/80 lg:block">
           Agnes Pimentel · Instituto Imperatriz · Mix Models
         </p>
-        <InstitutoSeal className="size-14 sm:size-16" priority />
+        <OfficialMarks priority />
       </header>
 
       <section className="relative min-h-[100svh] overflow-hidden">
@@ -89,6 +89,22 @@ export default function Home() {
               </div>
             </div>
           </div>
+        </div>
+      </section>
+
+      <section
+        id="inscricao"
+        className="relative overflow-hidden bg-[#072015] px-5 py-16 sm:px-8 sm:py-24"
+      >
+        <Image
+          src="/img-base.png"
+          alt=""
+          fill
+          className="object-cover object-[center_20%] opacity-25"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-green-deep via-green-deep/85 to-green-deep" />
+        <div className="relative mx-auto max-w-3xl">
+          <InscricaoForm />
         </div>
       </section>
 
@@ -187,29 +203,15 @@ export default function Home() {
         </div>
       </section>
 
-      <section
-        id="inscricao"
-        className="relative overflow-hidden bg-[#072015] px-5 py-16 sm:px-8 sm:py-24"
-      >
-        <Image
-          src="/img-base.png"
-          alt=""
-          fill
-          className="object-cover object-[center_20%] opacity-25"
-        />
-        <div className="absolute inset-0 bg-gradient-to-b from-green-deep via-green-deep/85 to-green-deep" />
-        <div className="relative mx-auto max-w-3xl">
-          <InscricaoForm />
-        </div>
-      </section>
-
       <footer className="border-t border-white/10 bg-green-deep px-5 py-10 sm:px-8">
         <div className="mx-auto flex max-w-6xl flex-col gap-8">
           <div className="flex items-center gap-4">
-            <InstitutoSeal className="size-14" />
+            <OfficialMarks
+              sealClassName="size-14"
+              mixClassName="h-7 w-auto"
+            />
             <div>
-              <MixWordmark className="text-xl text-white" />
-              <p className="mt-2 text-sm text-cream/55">
+              <p className="mt-0 text-sm text-cream/55">
                 Mix Models Agency · Instituto Imperatriz Leopoldinense · Agnes
                 Pimentel
               </p>

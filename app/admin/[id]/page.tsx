@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { MixWordmark, LogoImperatriz } from "@/components/Brand";
+import { OfficialMarks } from "@/components/Brand";
 import { ExportActions } from "@/components/admin/ExportActions";
 import { CopyLink } from "@/components/CopyLink";
 import { DeleteInscricao } from "@/components/admin/DeleteInscricao";
@@ -52,8 +52,10 @@ export default async function AdminProfilePage({
       <div className="mx-auto max-w-5xl space-y-6">
         <header className="flex flex-wrap items-center justify-between gap-4 rounded-[28px] bg-green-deep px-6 py-5">
           <div className="flex items-center gap-4">
-            <LogoImperatriz className="size-12" />
-            <MixWordmark className="text-lg text-white" />
+            <OfficialMarks
+              sealClassName="size-12"
+              mixClassName="h-6 w-auto"
+            />
             <Link
               href="/admin"
               className="text-sm font-semibold text-white/70 hover:text-lime"
