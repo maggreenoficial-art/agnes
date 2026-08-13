@@ -1,6 +1,12 @@
 import Image from "next/image";
 import { InstitutoSeal, MixWordmark } from "@/components/Brand";
 import { InscricaoForm } from "@/components/InscricaoForm";
+import {
+  ENDERECO,
+  MAPS_DIRECTIONS,
+  MAPS_EMBED,
+  MAPS_LINK,
+} from "@/lib/venue";
 
 const INSTAGRAMS = [
   {
@@ -29,12 +35,6 @@ const INSTAGRAMS = [
     href: "https://www.instagram.com/vozdascomunidades/",
   },
 ];
-
-const ENDERECO = "Rua Professor Lacê, 235, Ramos, Rio de Janeiro — RJ";
-const MAPS_QUERY = "Rua Professor Lacê, 235, Ramos, Rio de Janeiro, RJ";
-const MAPS_LINK = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(MAPS_QUERY)}`;
-const MAPS_DIRECTIONS = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(MAPS_QUERY)}`;
-const MAPS_EMBED = `https://www.google.com/maps?q=${encodeURIComponent(MAPS_QUERY)}&hl=pt-BR&z=16&output=embed`;
 
 export default function Home() {
   return (

@@ -73,3 +73,46 @@ export async function setInscricaoStatus(
   if (!row) return { error: "Perfil não encontrado." };
   return { data: mapInscricao(row) };
 }
+
+function fotoStoragePath(url: string, fallbackId: string) {
+  const marker = "/inscricoes-fotos/";
+  const index = url.indexOf(marker);
+  if (index === -1) return `${fallbackId}`;
+  return decodeURIComponent(url.slice(index + marker.length).split("?")[0]);
+}
+
+export async function removeInscricao(id: string): Promise<{ error?: string }> {
+  const perfil = await getInscricao(id);
+
+  const { error } = await supabase.rpc("admin_excluir_inscricao", {
+    p_secret: getAdminSecret(),
+    p_id: id,
+  });
+
+  if (error) {
+    const message = error.message.toLowerCase();
+    if (
+      error.code === "PGRST202" ||
+      message.includes("could not find the function")
+    ) {
+      return { error: "sql-missing" };
+    }
+    if (error.code === "42501" || message.includes("unauthorized")) {
+      return { error: "secret-mismatch" };
+    }
+    if (error.code === "P0002" || message.includes("not found")) {
+      return { error: "Perfil não encontrado." };
+    }
+    return { error: error.message };
+  }
+
+  const paths = (perfil?.fotos ?? [])
+    .map((url) => fotoStoragePath(url, id))
+    .filter(Boolean);
+
+  if (paths.length > 0) {
+    await supabase.storage.from("inscricoes-fotos").remove(paths);
+  }
+
+  return {};
+}

@@ -19,13 +19,14 @@ export function LoginForm() {
   }
 
   return (
-    <form
-      action={onSubmit}
-      className="relative overflow-hidden rounded-[28px] bg-white text-ink"
-    >
-      <div className="absolute -top-3 right-6 rotate-3 rounded-sm bg-lime px-4 py-1.5 text-xs font-semibold uppercase tracking-wide">
+    <div className="relative pt-4">
+      <div className="absolute top-1 right-5 z-20 rotate-3 rounded-sm bg-lime px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-ink shadow-sm">
         Equipe
       </div>
+      <form
+        action={onSubmit}
+        className="relative overflow-hidden rounded-[28px] bg-white text-ink"
+      >
       <div className="flex items-center justify-between border-b border-black/6 px-6 py-3">
         <WindowDots />
         <LogoImperatriz className="size-8" />
@@ -67,5 +68,6 @@ export function LoginForm() {
         </button>
       </div>
     </form>
+    </div>
   );
 }

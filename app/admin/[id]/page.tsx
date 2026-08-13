@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { MixWordmark, LogoImperatriz } from "@/components/Brand";
 import { ExportActions } from "@/components/admin/ExportActions";
 import { CopyLink } from "@/components/CopyLink";
+import { DeleteInscricao } from "@/components/admin/DeleteInscricao";
 import { PhotoGallery } from "@/components/admin/PhotoGallery";
 import { StatusActions } from "@/components/admin/StatusActions";
 import { StatusBadge } from "@/components/admin/StatusBadge";
@@ -154,6 +155,8 @@ export default async function AdminProfilePage({
               />
             </div>
           </div>
+
+          <DeleteInscricao id={perfil.id} nome={perfil.nome_completo} />
         </section>
       </div>
     </main>

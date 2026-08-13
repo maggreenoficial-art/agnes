@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { updateStatus } from "@/app/admin/actions";
+import { DeleteInscricao } from "@/components/admin/DeleteInscricao";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import {
   STATUS_LABEL,
@@ -189,7 +190,7 @@ export function AdminBoard({ inscricoes }: { inscricoes: Inscricao[] }) {
                   >
                     {item.instagram}
                   </a>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <a
                       href={`/admin/${item.id}/export/pdf`}
                       className="rounded-full bg-cream px-3 py-1.5 text-xs font-bold text-ink hover:bg-lime"
@@ -202,6 +203,11 @@ export function AdminBoard({ inscricoes }: { inscricoes: Inscricao[] }) {
                     >
                       Excel
                     </a>
+                    <DeleteInscricao
+                      id={item.id}
+                      nome={item.nome_completo}
+                      compact
+                    />
                   </div>
                   <label className="block text-[11px] font-bold uppercase tracking-[0.16em] text-ink/35">
                     Status

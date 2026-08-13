@@ -7,7 +7,7 @@ import {
   isAdmin,
   setAdminCookie,
 } from "@/lib/admin-auth";
-import { getInscricao, setInscricaoStatus } from "@/lib/admin-data";
+import { getInscricao, removeInscricao, setInscricaoStatus } from "@/lib/admin-data";
 import { sendProfileEmail } from "@/lib/export/email";
 import { buildProfileExcel } from "@/lib/export/excel";
 import { fileBaseName } from "@/lib/export/fields";
@@ -56,6 +56,33 @@ export async function updateStatus(id: string, status: string) {
 
   revalidatePath("/admin");
   revalidatePath(`/admin/${id}`);
+  return { ok: true };
+}
+
+export async function deleteInscricao(id: string, stayOnList = false) {
+  if (!(await isAdmin())) {
+    return { error: "Sessão expirada. Entre de novo." };
+  }
+
+  const result = await removeInscricao(id);
+  if (result.error === "sql-missing") {
+    return {
+      error:
+        "Falta um passo no banco. Abra o SQL Editor do Supabase, rode o arquivo supabase/excluir.sql e tente de novo.",
+    };
+  }
+  if (result.error) {
+    return { error: result.error };
+  }
+
+  revalidatePath("/admin");
+  revalidatePath(`/admin/${id}`);
+  revalidatePath(`/acompanhar/${id}`);
+
+  if (!stayOnList) {
+    redirect("/admin");
+  }
+
   return { ok: true };
 }
 

@@ -4,13 +4,14 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import {
+  maskDate,
   maskHeight,
   maskPhone,
-  maxBirthDateIso,
   MIN_AGE,
   isAtLeastAge,
   normalizeInstagram,
   onlyDigits,
+  parseBrDateToIso,
   sanitizeFileName,
 } from "@/lib/masks";
 import { LogoImperatriz, WindowDots } from "./Brand";
@@ -153,9 +154,12 @@ export function InscricaoForm() {
     if (form.nomeCompleto.trim().split(/\s+/).length < 2) {
       next.nomeCompleto = "Informe nome e sobrenome.";
     }
-    if (!form.dataNascimento) {
+    const nascimentoIso = parseBrDateToIso(form.dataNascimento);
+    if (!form.dataNascimento.trim()) {
       next.dataNascimento = "Informe a data de nascimento.";
-    } else if (!isAtLeastAge(form.dataNascimento, MIN_AGE)) {
+    } else if (!nascimentoIso) {
+      next.dataNascimento = "Digite a data no formato 00/00/0000.";
+    } else if (!isAtLeastAge(nascimentoIso, MIN_AGE)) {
       next.dataNascimento = `A idade mínima é ${MIN_AGE} anos.`;
     }
     if (form.endereco.trim().length < 8) {
@@ -242,10 +246,15 @@ export function InscricaoForm() {
 
       setProgress("Salvando sua inscrição…");
 
+      const dataNascimentoIso = parseBrDateToIso(form.dataNascimento);
+      if (!dataNascimentoIso) {
+        throw new Error("invalid birth date");
+      }
+
       const { error: insertError } = await supabase.from("inscricoes").insert({
         id: inscricaoId,
         nome_completo: form.nomeCompleto.trim(),
-        data_nascimento: form.dataNascimento,
+        data_nascimento: dataNascimentoIso,
         endereco: form.endereco.trim(),
         telefone: maskPhone(form.telefone),
         email: form.email.trim().toLowerCase(),
@@ -341,24 +350,19 @@ export function InscricaoForm() {
               error={errors.dataNascimento}
             >
               <input
-                type="date"
+                type="text"
+                inputMode="numeric"
+                autoComplete="bday"
+                placeholder="00/00/0000"
+                maxLength={10}
                 className={inputClass}
                 value={form.dataNascimento}
-                max={maxBirthDateIso(MIN_AGE)}
                 onChange={(event) => {
-                  const value = event.target.value;
-                  if (!value) {
-                    update("dataNascimento", "");
-                    return;
-                  }
-                  if (!isAtLeastAge(value, MIN_AGE)) {
-                    setErrors((current) => ({
-                      ...current,
-                      dataNascimento: `A idade mínima é ${MIN_AGE} anos.`,
-                    }));
-                    return;
-                  }
-                  update("dataNascimento", value);
+                  update("dataNascimento", maskDate(event.target.value));
+                  setErrors((current) => ({
+                    ...current,
+                    dataNascimento: undefined,
+                  }));
                 }}
               />
             </Field>

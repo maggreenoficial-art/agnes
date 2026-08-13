@@ -63,6 +63,13 @@ create policy "Leitura publica de fotos da inscricao"
   to anon, authenticated
   using (bucket_id = 'inscricoes-fotos');
 
+drop policy if exists "Exclusao de fotos da inscricao" on storage.objects;
+create policy "Exclusao de fotos da inscricao"
+  on storage.objects
+  for delete
+  to anon, authenticated
+  using (bucket_id = 'inscricoes-fotos');
+
 alter table public.inscricoes
   add column if not exists status text not null default 'nova';
 
@@ -174,13 +181,43 @@ begin
 end;
 $$;
 
+create or replace function public.admin_excluir_inscricao(p_secret text, p_id uuid)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  removido uuid;
+begin
+  if not exists (
+    select 1 from public.admin_settings
+    where id = 1 and secret = p_secret
+  ) then
+    raise exception 'unauthorized' using errcode = '42501';
+  end if;
+
+  delete from public.inscricoes
+    where id = p_id
+    returning id into removido;
+
+  if removido is null then
+    raise exception 'not found' using errcode = 'P0002';
+  end if;
+
+  return removido;
+end;
+$$;
+
 revoke all on function public.admin_listar_inscricoes(text) from public;
 revoke all on function public.admin_obter_inscricao(text, uuid) from public;
 revoke all on function public.admin_atualizar_status(text, uuid, text) from public;
+revoke all on function public.admin_excluir_inscricao(text, uuid) from public;
 
 grant execute on function public.admin_listar_inscricoes(text) to anon, authenticated;
 grant execute on function public.admin_obter_inscricao(text, uuid) to anon, authenticated;
 grant execute on function public.admin_atualizar_status(text, uuid, text) to anon, authenticated;
+grant execute on function public.admin_excluir_inscricao(text, uuid) to anon, authenticated;
 
 create or replace function public.acompanhar_inscricao(p_id uuid)
 returns table (

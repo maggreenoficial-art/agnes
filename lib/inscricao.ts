@@ -41,7 +41,7 @@ export const STATUS_PUBLIC_TEXT: Record<InscricaoStatus, string> = {
   nova: "Recebemos o seu perfil. A equipe ainda vai avaliar as informações e as fotos.",
   em_analise: "Seu perfil está em análise pela equipe da Mix Models e do Instituto Imperatriz.",
   aprovada:
-    "Você foi aprovada para a etapa presencial na quadra da Imperatriz Leopoldinense. Fique atenta ao Instagram e ao WhatsApp.",
+    "Você foi aprovada para a etapa presencial no dia 12 de setembro, na quadra da Imperatriz Leopoldinense. Confira o endereço e o mapa abaixo.",
   reprovada:
     "Neste momento o seu perfil não segue para a etapa presencial. Obrigada por participar.",
 };
