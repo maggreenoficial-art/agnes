@@ -14,7 +14,43 @@ function readCookie(name: string) {
   return match ? decodeURIComponent(match[1]) : undefined;
 }
 
-export function trackMetaEvent(
+export const PENDING_LEAD_KEY = "agnes_meta_lead";
+
+export type PendingLead = {
+  eventId: string;
+  email?: string;
+  phone?: string;
+  firstName?: string;
+  lastName?: string;
+};
+
+export function savePendingLead(data: PendingLead) {
+  try {
+    sessionStorage.setItem(PENDING_LEAD_KEY, JSON.stringify(data));
+  } catch {
+    /* ignore */
+  }
+}
+
+export function readPendingLead(): PendingLead | null {
+  try {
+    const raw = sessionStorage.getItem(PENDING_LEAD_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as PendingLead;
+  } catch {
+    return null;
+  }
+}
+
+export function clearPendingLead() {
+  try {
+    sessionStorage.removeItem(PENDING_LEAD_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+export async function trackMetaEvent(
   eventName: "PageView" | "Lead" | "CompleteRegistration",
   extra?: {
     eventId?: string;
@@ -38,23 +74,40 @@ export function trackMetaEvent(
     params.get("test_event_code") ||
     params.get("meta_test");
 
-  void fetch("/api/meta", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    keepalive: true,
-    body: JSON.stringify({
-      eventName,
-      eventId,
-      eventSourceUrl: window.location.href,
-      fbp: readCookie("_fbp"),
-      fbc: readCookie("_fbc"),
-      email: extra?.email,
-      phone: extra?.phone,
-      firstName: extra?.firstName,
-      lastName: extra?.lastName,
-      testEventCode,
-    }),
-  }).catch(() => undefined);
+  const body = JSON.stringify({
+    eventName,
+    eventId,
+    eventSourceUrl: window.location.href,
+    fbp: readCookie("_fbp"),
+    fbc: readCookie("_fbc"),
+    email: extra?.email,
+    phone: extra?.phone,
+    firstName: extra?.firstName,
+    lastName: extra?.lastName,
+    testEventCode,
+  });
+
+  try {
+    await fetch("/api/meta", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      keepalive: true,
+      body,
+    });
+  } catch {
+    try {
+      navigator.sendBeacon(
+        "/api/meta",
+        new Blob([body], { type: "application/json" }),
+      );
+    } catch {
+      /* ignore */
+    }
+  }
+
+  if (eventName === "Lead") {
+    await new Promise((resolve) => window.setTimeout(resolve, 400));
+  }
 
   return eventId;
 }

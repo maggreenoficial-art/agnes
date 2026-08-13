@@ -2,6 +2,7 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { InstitutoSeal, LogoMixModels, WindowDots } from "@/components/Brand";
 import { CopyLink } from "@/components/CopyLink";
+import { LeadConfirmation } from "@/components/LeadConfirmation";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { getAcompanhamento } from "@/lib/acompanhar";
 import {
@@ -100,6 +101,10 @@ export default async function AcompanharPage({
           <LogoMixModels className="h-5 w-auto sm:h-6" priority />
           <InstitutoSeal className="size-11 sm:size-12" priority />
         </header>
+
+        {isNew ? (
+          <LeadConfirmation inscricaoId={perfil.id} firstName={firstName} />
+        ) : null}
 
         <section className="relative mx-auto mt-16 mb-8 w-full max-w-xl pt-4">
           <div className="absolute top-1 right-5 z-20 rotate-3 rounded-sm bg-lime px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-ink shadow-sm sm:right-8">

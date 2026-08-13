@@ -16,7 +16,7 @@ import {
 } from "@/lib/masks";
 import { LogoImperatriz, WindowDots } from "./Brand";
 import { AddressField } from "./AddressField";
-import { trackMetaEvent } from "./MetaPixel";
+import { savePendingLead, trackMetaEvent } from "./MetaPixel";
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const PHOTO_SLOTS = [
@@ -274,7 +274,16 @@ export function InscricaoForm() {
       }
 
       const parts = form.nomeCompleto.trim().split(/\s+/);
-      trackMetaEvent("Lead", {
+      const eventId = crypto.randomUUID();
+      savePendingLead({
+        eventId,
+        email: form.email.trim().toLowerCase(),
+        phone: form.telefone,
+        firstName: parts[0],
+        lastName: parts.slice(1).join(" "),
+      });
+      await trackMetaEvent("Lead", {
+        eventId,
         email: form.email.trim().toLowerCase(),
         phone: form.telefone,
         firstName: parts[0],

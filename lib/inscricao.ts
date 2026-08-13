@@ -53,16 +53,31 @@ export const STATUS_OPTIONS: InscricaoStatus[] = [
   "reprovada",
 ];
 
+const TIMEZONE_BR = "America/Sao_Paulo";
+
+function todayInSaoPaulo() {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: TIMEZONE_BR,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const year = Number(parts.find((part) => part.type === "year")?.value);
+  const month = Number(parts.find((part) => part.type === "month")?.value);
+  const day = Number(parts.find((part) => part.type === "day")?.value);
+  return { year, month, day };
+}
+
 export function idade(isoDate: string) {
   const nascimento = new Date(`${isoDate}T00:00:00`);
   if (Number.isNaN(nascimento.getTime())) return null;
 
-  const hoje = new Date();
-  let years = hoje.getFullYear() - nascimento.getFullYear();
-  const monthDelta = hoje.getMonth() - nascimento.getMonth();
+  const hoje = todayInSaoPaulo();
+  let years = hoje.year - nascimento.getFullYear();
+  const monthDelta = hoje.month - (nascimento.getMonth() + 1);
   if (
     monthDelta < 0 ||
-    (monthDelta === 0 && hoje.getDate() < nascimento.getDate())
+    (monthDelta === 0 && hoje.day < nascimento.getDate())
   ) {
     years -= 1;
   }
@@ -71,6 +86,7 @@ export function idade(isoDate: string) {
 
 export function formatDateTime(value: string) {
   return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: TIMEZONE_BR,
     dateStyle: "short",
     timeStyle: "short",
   }).format(new Date(value));
