@@ -1,3 +1,4 @@
+import { getAdminSecret } from "@/lib/admin-auth";
 import { supabase } from "@/lib/supabase";
 import {
   normalizeStatus,
@@ -18,30 +19,46 @@ export function isTrackingId(value: string) {
   return UUID.test(value);
 }
 
+function toAcompanhamento(row?: {
+  id?: string;
+  nome_completo?: string;
+  status?: string;
+  created_at?: string;
+} | null): Acompanhamento | null {
+  if (!row?.id || !row.nome_completo) return null;
+  return {
+    id: row.id,
+    nome_completo: row.nome_completo,
+    status: normalizeStatus(row.status),
+    created_at: row.created_at ?? "",
+  };
+}
+
 export async function getAcompanhamento(
   id: string,
 ): Promise<Acompanhamento | null> {
   if (!isTrackingId(id)) return null;
 
-  const { data, error } = await supabase.rpc("acompanhar_inscricao", {
+  const publicLookup = await supabase.rpc("acompanhar_inscricao", {
     p_id: id,
   });
 
-  if (error || !data) return null;
-  const row = (Array.isArray(data) ? data[0] : data) as
-    | {
-        id: string;
-        nome_completo: string;
-        status: string;
-        created_at: string;
-      }
-    | undefined;
-  if (!row?.id) return null;
+  if (!publicLookup.error) {
+    const row = Array.isArray(publicLookup.data)
+      ? publicLookup.data[0]
+      : publicLookup.data;
+    return toAcompanhamento(row);
+  }
 
-  return {
-    id: row.id,
-    nome_completo: row.nome_completo,
-    status: normalizeStatus(row.status),
-    created_at: row.created_at,
-  };
+  try {
+    const { data, error } = await supabase.rpc("admin_obter_inscricao", {
+      p_secret: getAdminSecret(),
+      p_id: id,
+    });
+    if (error) return null;
+    const row = Array.isArray(data) ? data[0] : data;
+    return toAcompanhamento(row);
+  } catch {
+    return null;
+  }
 }
