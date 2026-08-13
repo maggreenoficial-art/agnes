@@ -82,7 +82,7 @@ export function AdminBoard({ inscricoes }: { inscricoes: Inscricao[] }) {
             <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-ink/40">
               {stat.label}
             </p>
-            <p className="mt-1 font-display text-3xl font-extrabold">
+            <p className="mt-1 font-display text-3xl font-semibold">
               {stat.value}
             </p>
           </div>
@@ -128,7 +128,7 @@ export function AdminBoard({ inscricoes }: { inscricoes: Inscricao[] }) {
 
       {filtered.length === 0 ? (
         <div className="rounded-[28px] bg-white px-6 py-16 text-center text-ink">
-          <p className="font-display text-2xl font-extrabold">
+          <p className="font-display text-2xl font-semibold">
             Nenhum perfil por aqui.
           </p>
           <p className="mt-2 text-sm text-ink/50">
@@ -172,7 +172,7 @@ export function AdminBoard({ inscricoes }: { inscricoes: Inscricao[] }) {
                   <div>
                     <Link
                       href={`/admin/${item.id}`}
-                      className="font-display text-xl font-extrabold leading-tight hover:text-green"
+                      className="font-display text-xl font-semibold leading-snug hover:text-green"
                     >
                       {item.nome_completo}
                     </Link>

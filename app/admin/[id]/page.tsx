@@ -74,7 +74,7 @@ export default async function AdminProfilePage({
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <StatusBadge status={perfil.status} />
-              <h1 className="mt-3 font-display text-4xl font-extrabold leading-tight">
+              <h1 className="mt-3 font-display text-4xl font-semibold leading-snug">
                 {perfil.nome_completo}
               </h1>
               <p className="mt-2 text-ink/55">

@@ -13,7 +13,7 @@ function SetupCard({
 }) {
   return (
     <div className="rounded-[28px] bg-white p-8 text-ink">
-      <h2 className="font-display text-2xl font-extrabold">{title}</h2>
+      <h2 className="font-display text-2xl font-semibold">{title}</h2>
       <div className="mt-3 space-y-3 text-sm leading-6 text-ink/65">
         {children}
       </div>

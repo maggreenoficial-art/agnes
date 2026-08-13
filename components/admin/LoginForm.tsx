@@ -23,7 +23,7 @@ export function LoginForm() {
       action={onSubmit}
       className="relative overflow-hidden rounded-[28px] bg-white text-ink"
     >
-      <div className="absolute -top-3 right-6 rotate-3 rounded-sm bg-lime px-4 py-1.5 text-xs font-extrabold uppercase tracking-wide">
+      <div className="absolute -top-3 right-6 rotate-3 rounded-sm bg-lime px-4 py-1.5 text-xs font-semibold uppercase tracking-wide">
         Equipe
       </div>
       <div className="flex items-center justify-between border-b border-black/6 px-6 py-3">
@@ -35,7 +35,7 @@ export function LoginForm() {
           <p className="text-xs font-bold uppercase tracking-[0.22em] text-green">
             Área interna
           </p>
-          <h1 className="mt-2 font-display text-3xl font-extrabold">
+          <h1 className="mt-2 font-display text-3xl font-semibold">
             Perfis recebidos
           </h1>
           <p className="mt-2 text-sm leading-6 text-ink/55">
@@ -61,7 +61,7 @@ export function LoginForm() {
         <button
           type="submit"
           disabled={pending}
-          className="w-full rounded-full bg-lime py-4 font-display text-lg font-extrabold text-ink hover:bg-lime-deep disabled:opacity-70"
+          className="w-full rounded-full bg-lime py-4 text-lg font-semibold text-ink hover:bg-lime-deep disabled:opacity-70"
         >
           {pending ? "Entrando…" : "Entrar"}
         </button>

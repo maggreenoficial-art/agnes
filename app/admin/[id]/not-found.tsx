@@ -4,7 +4,7 @@ export default function AdminNotFound() {
   return (
     <main className="grid min-h-[100svh] place-items-center bg-[#f3efe4] px-5 text-center">
       <div>
-        <h1 className="font-display text-3xl font-extrabold text-ink">
+        <h1 className="font-display text-3xl font-semibold text-ink">
           Perfil não encontrado
         </h1>
         <Link

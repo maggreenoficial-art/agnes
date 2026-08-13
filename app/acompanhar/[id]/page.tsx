@@ -40,7 +40,7 @@ export default async function AcompanharPage({
       </header>
 
       <section className="relative mx-auto mt-16 w-full max-w-xl pt-4">
-        <div className="absolute top-1 right-5 z-20 rotate-3 rounded-sm bg-lime px-4 py-1.5 text-xs font-extrabold uppercase tracking-wide text-ink shadow-sm sm:right-8">
+        <div className="absolute top-1 right-5 z-20 rotate-3 rounded-sm bg-lime px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-ink shadow-sm sm:right-8">
           {isNew ? "Inscrição enviada" : "Acompanhar"}
         </div>
         <div className="overflow-hidden rounded-[28px] bg-white text-ink">
@@ -52,7 +52,7 @@ export default async function AcompanharPage({
             <p className="text-xs font-bold uppercase tracking-[0.22em] text-green">
               {isNew ? "Obrigada" : "Processo seletivo"}
             </p>
-            <h1 className="mt-3 font-display text-3xl font-extrabold leading-tight sm:text-4xl">
+            <h1 className="mt-3 font-display text-3xl font-semibold leading-snug sm:text-4xl">
               {isNew
                 ? "Seu primeiro passo foi dado."
                 : `Olá, ${firstName}.`}
@@ -69,7 +69,7 @@ export default async function AcompanharPage({
               </p>
               <div className="mt-3 flex items-center gap-3">
                 <StatusBadge status={perfil.status} />
-                <p className="font-display text-xl font-extrabold">
+                <p className="font-display text-xl font-semibold">
                   {STATUS_PUBLIC_LABEL[perfil.status]}
                 </p>
               </div>

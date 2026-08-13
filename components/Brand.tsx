@@ -3,7 +3,7 @@ import Image from "next/image";
 export function MixWordmark({ className = "" }: { className?: string }) {
   return (
     <span
-      className={`font-display font-extrabold tracking-[0.38em] ${className}`}
+      className={`font-sans font-bold tracking-[0.38em] ${className}`}
       style={{ WebkitTextStroke: "1.35px currentColor", color: "transparent" }}
     >
       MIX

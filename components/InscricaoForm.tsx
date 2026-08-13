@@ -263,7 +263,7 @@ export function InscricaoForm() {
         throw insertError;
       }
 
-      router.push(`/acompanhar/${inscricaoId}?novo=1`);
+      window.location.assign(`/acompanhar/${inscricaoId}?novo=1`);
     } catch (error) {
       console.error(error);
       setStatus("error");
@@ -278,7 +278,7 @@ export function InscricaoForm() {
 
   return (
     <div className="relative pt-4">
-      <div className="absolute top-1 right-5 z-20 rotate-3 rounded-sm bg-lime px-4 py-1.5 text-xs font-extrabold uppercase tracking-wide text-ink shadow-sm sm:right-8">
+      <div className="absolute top-1 right-5 z-20 rotate-3 rounded-sm bg-lime px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-ink shadow-sm sm:right-8">
         Fique ligada!
       </div>
       <form
@@ -302,7 +302,7 @@ export function InscricaoForm() {
           <p className="text-xs font-bold uppercase tracking-[0.22em] text-green">
             Primeira etapa
           </p>
-          <h2 className="mt-2 font-display text-3xl font-extrabold tracking-tight text-ink">
+          <h2 className="mt-2 font-display text-3xl font-semibold tracking-tight text-ink">
             Complete o formulário e participe
           </h2>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-ink/60">
@@ -584,7 +584,7 @@ export function InscricaoForm() {
         <button
           type="submit"
           disabled={busy}
-          className="flex w-full items-center justify-center rounded-full bg-lime px-6 py-4 font-display text-lg font-extrabold text-ink transition hover:bg-lime-deep disabled:cursor-not-allowed disabled:opacity-70"
+          className="flex w-full items-center justify-center rounded-full bg-lime px-6 py-4 text-lg font-semibold text-ink transition hover:bg-lime-deep disabled:cursor-not-allowed disabled:opacity-70"
         >
           {busy ? progress || "Enviando…" : "Enviar inscrição"}
         </button>

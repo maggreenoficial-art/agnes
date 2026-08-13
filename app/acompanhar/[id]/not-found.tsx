@@ -4,7 +4,7 @@ export default function AcompanharNotFound() {
   return (
     <main className="grid min-h-svh place-items-center bg-green-deep px-5 text-center text-cream">
       <div>
-        <h1 className="font-display text-3xl font-extrabold">
+        <h1 className="font-display text-3xl font-semibold">
           Link não encontrado
         </h1>
         <p className="mt-3 text-sm text-cream/70">

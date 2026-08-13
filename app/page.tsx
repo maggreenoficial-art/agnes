@@ -59,13 +59,13 @@ export default function Home() {
 
         <div className="relative mx-auto flex min-h-[100svh] max-w-6xl flex-col justify-end px-5 pb-16 pt-28 sm:px-8 sm:pb-20">
           <div className="rise max-w-3xl">
-            <p className="mb-5 inline-flex items-center gap-2 rounded-sm bg-lime px-3 py-1.5 text-xs font-extrabold uppercase tracking-[0.16em] text-ink">
+            <p className="mb-5 inline-flex items-center gap-2 rounded-sm bg-lime px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-ink">
               Seleção Instituto Imperatriz
               <span className="grid size-5 place-items-center rounded-full bg-white/90 text-[11px] text-ink">
                 →
               </span>
             </p>
-            <h1 className="font-display text-4xl font-extrabold leading-[1.05] tracking-tight text-white sm:text-6xl">
+            <h1 className="font-display text-4xl font-semibold leading-snug tracking-tight text-white sm:text-6xl sm:leading-[1.12]">
               Agnes Pimentel abre seleção para novos talentos da Zona da
               Leopoldina.
             </h1>
@@ -75,7 +75,7 @@ export default function Home() {
             <div className="mt-8 flex flex-wrap items-center gap-4">
               <a
                 href="#inscricao"
-                className="rounded-full bg-lime px-7 py-3.5 font-display text-base font-extrabold text-ink transition hover:bg-lime-deep"
+                className="rounded-full bg-lime px-7 py-3.5 text-base font-semibold text-ink transition hover:bg-lime-deep"
               >
                 Quero me inscrever
               </a>
@@ -83,7 +83,7 @@ export default function Home() {
                 <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-ink/50">
                   Inscrições até
                 </p>
-                <p className="font-display text-2xl font-extrabold leading-none">
+                <p className="font-display text-2xl font-semibold leading-none">
                   07 <span className="text-green">Set</span>
                 </p>
               </div>
@@ -113,7 +113,7 @@ export default function Home() {
                   0{index + 1}
                 </span>
               </div>
-              <p className="font-display text-2xl font-extrabold leading-tight">
+              <p className="font-display text-2xl font-semibold leading-snug">
                 {line}
               </p>
             </article>
@@ -127,7 +127,7 @@ export default function Home() {
             <p className="text-xs font-bold uppercase tracking-[0.24em] text-lime">
               Processo seletivo
             </p>
-            <h2 className="mt-3 font-display text-4xl font-extrabold leading-tight text-white sm:text-5xl">
+            <h2 className="mt-3 font-display text-4xl font-semibold leading-snug text-white sm:text-5xl">
               Quer dar o primeiro passo na carreira de modelo?
             </h2>
             <p className="mt-5 max-w-xl text-base leading-7 text-cream/75">

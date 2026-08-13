@@ -13,7 +13,7 @@ export function AdminHeader({ total }: { total: number }) {
           <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-lime">
             Processo seletivo
           </p>
-          <h1 className="font-display text-2xl font-extrabold text-white sm:text-3xl">
+          <h1 className="font-display text-2xl font-semibold text-white sm:text-3xl">
             Perfis recebidos
             <span className="ml-2 text-lime">{total}</span>
           </h1>
