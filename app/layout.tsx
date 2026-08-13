@@ -17,7 +17,7 @@ const jakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("http://localhost:3000"),
+  metadataBase: new URL("https://www.agnespimentel.com"),
   title: "Processo Seletivo | Agnes Pimentel + Mix Models",
   description:
     "Inscreva-se para a seleção presencial da Mix Models Agency, idealizada por Agnes Pimentel, na quadra da Imperatriz Leopoldinense.",
@@ -25,6 +25,7 @@ export const metadata: Metadata = {
     title: "Processo Seletivo | Agnes Pimentel + Mix Models",
     description:
       "Quer dar o primeiro passo na carreira de modelo? Inscreva-se até 07 de setembro.",
+    url: "https://www.agnespimentel.com",
     images: ["/campaign/agnes-selecao.png"],
     locale: "pt_BR",
     type: "website",

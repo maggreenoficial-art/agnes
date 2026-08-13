@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 
 const HEADERS = {
   Accept: "application/json",
-  "User-Agent": "AgnesSelecao/1.0 (https://agnes-pink.vercel.app)",
+  "User-Agent": "AgnesSelecao/1.0 (https://www.agnespimentel.com)",
 };
 
 type PhotonFeature = {
