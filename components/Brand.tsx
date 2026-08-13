@@ -61,8 +61,8 @@ export function InstitutoSeal({
 
 export function OfficialMarks({
   className = "",
-  sealClassName = "size-14 sm:size-16",
-  mixClassName = "h-7 w-auto sm:h-8",
+  sealClassName = "size-11 sm:size-12",
+  mixClassName = "h-5 w-auto sm:h-6",
   priority = false,
 }: {
   className?: string;
