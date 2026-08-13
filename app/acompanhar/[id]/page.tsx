@@ -1,6 +1,6 @@
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import { InstitutoSeal, MixWordmark, OfficialMarks, WindowDots } from "@/components/Brand";
+import { InstitutoSeal, LogoMixModels, WindowDots } from "@/components/Brand";
 import { CopyLink } from "@/components/CopyLink";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { getAcompanhamento } from "@/lib/acompanhar";
@@ -97,12 +97,8 @@ export default async function AcompanharPage({
 
       <div className="relative flex min-h-svh flex-col px-5 py-10 sm:px-8">
         <header className="mx-auto flex w-full max-w-xl items-center justify-between gap-4">
-          <MixWordmark className="hidden text-xl text-white sm:inline" />
-          <OfficialMarks
-            priority
-            sealClassName="size-14"
-            mixClassName="h-7 w-auto"
-          />
+          <LogoMixModels className="h-5 w-auto sm:h-6" priority />
+          <InstitutoSeal className="size-11 sm:size-12" priority />
         </header>
 
         <section className="relative mx-auto mt-16 mb-8 w-full max-w-xl pt-4">

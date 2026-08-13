@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { MixWordmark, OfficialMarks } from "@/components/Brand";
+import { InstitutoSeal, LogoMixModels, OfficialMarks } from "@/components/Brand";
 import { InscricaoForm } from "@/components/InscricaoForm";
 import {
   ENDERECO,
@@ -40,15 +40,11 @@ export default function Home() {
   return (
     <div className="min-h-full">
       <header className="absolute inset-x-0 top-0 z-20 flex items-center justify-between px-5 py-5 sm:px-8">
-        <MixWordmark className="text-lg text-white sm:text-2xl" />
+        <LogoMixModels className="h-5 w-auto sm:h-6" priority />
         <p className="pointer-events-none absolute inset-x-0 hidden text-center text-[11px] font-semibold uppercase tracking-[0.28em] text-white/80 lg:block">
           Agnes Pimentel · Instituto Imperatriz · Mix Models
         </p>
-        <OfficialMarks
-          priority
-          sealClassName="size-11 sm:size-12"
-          mixClassName="h-5 w-auto sm:h-6"
-        />
+        <InstitutoSeal className="size-11 sm:size-12" priority />
       </header>
 
       <section className="relative min-h-[100svh] overflow-hidden">
