@@ -39,7 +39,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full bg-green-deep font-sans text-cream">
         {children}
-        <Script id="meta-pixel" strategy="afterInteractive">
+        <Script id="meta-pixel" strategy="beforeInteractive">
           {`
             !function(f,b,e,v,n,t,s)
             {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
@@ -49,7 +49,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             t.src=v;s=b.getElementsByTagName(e)[0];
             s.parentNode.insertBefore(t,s)}(window, document,'script',
             'https://connect.facebook.net/en_US/fbevents.js');
-            fbq('init', '${process.env.NEXT_PUBLIC_META_PIXEL_ID || "1523707485735767"}');
+            fbq('init', '1523707485735767');
+            fbq('track', 'PageView');
           `}
         </Script>
         <noscript>
@@ -57,8 +58,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             height={1}
             width={1}
             style={{ display: "none" }}
-            src={`https://www.facebook.com/tr?id=${process.env.NEXT_PUBLIC_META_PIXEL_ID || "1523707485735767"}&ev=PageView&noscript=1`}
             alt=""
+            src="https://www.facebook.com/tr?id=1523707485735767&ev=PageView&noscript=1"
           />
         </noscript>
         <Suspense fallback={null}>

@@ -205,17 +205,11 @@ export default function Home() {
 
       <footer className="border-t border-white/10 bg-green-deep px-5 py-10 sm:px-8">
         <div className="mx-auto flex max-w-6xl flex-col gap-8">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center">
             <OfficialMarks
               sealClassName="size-14"
               mixClassName="h-7 w-auto"
             />
-            <div>
-              <p className="mt-0 text-sm text-cream/55">
-                Mix Models Agency · Instituto Imperatriz Leopoldinense · Agnes
-                Pimentel
-              </p>
-            </div>
           </div>
           <div>
             <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-lime">

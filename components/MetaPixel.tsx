@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
 declare global {
@@ -22,11 +22,21 @@ export function trackMetaEvent(
     phone?: string;
     firstName?: string;
     lastName?: string;
+    skipBrowser?: boolean;
+    testEventCode?: string | null;
   },
 ) {
   const eventId = extra?.eventId ?? crypto.randomUUID();
 
-  window.fbq?.("track", eventName, {}, { eventID: eventId });
+  if (!extra?.skipBrowser) {
+    window.fbq?.("track", eventName, {}, { eventID: eventId });
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  const testEventCode =
+    extra?.testEventCode ||
+    params.get("test_event_code") ||
+    params.get("meta_test");
 
   void fetch("/api/meta", {
     method: "POST",
@@ -42,6 +52,7 @@ export function trackMetaEvent(
       phone: extra?.phone,
       firstName: extra?.firstName,
       lastName: extra?.lastName,
+      testEventCode,
     }),
   }).catch(() => undefined);
 
@@ -51,11 +62,18 @@ export function trackMetaEvent(
 export function MetaPageView() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const firstLoad = useRef(true);
 
   useEffect(() => {
+    const testEventCode =
+      searchParams.get("test_event_code") || searchParams.get("meta_test");
+    const skipBrowser = firstLoad.current;
+    firstLoad.current = false;
+
     const timer = window.setTimeout(() => {
-      trackMetaEvent("PageView");
-    }, 400);
+      trackMetaEvent("PageView", { skipBrowser, testEventCode });
+    }, 800);
+
     return () => window.clearTimeout(timer);
   }, [pathname, searchParams]);
 

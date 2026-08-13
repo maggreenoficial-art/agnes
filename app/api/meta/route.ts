@@ -15,6 +15,7 @@ export async function POST(request: Request) {
     phone?: string;
     firstName?: string;
     lastName?: string;
+    testEventCode?: string;
   };
 
   try {
@@ -43,6 +44,7 @@ export async function POST(request: Request) {
     lastName: eventName === "PageView" ? undefined : body.lastName,
     clientIp,
     userAgent,
+    testEventCode: body.testEventCode,
   });
 
   return Response.json({ ok: true });

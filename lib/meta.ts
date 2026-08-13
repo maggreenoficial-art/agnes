@@ -42,7 +42,19 @@ export type MetaEventInput = {
   lastName?: string | null;
   clientIp?: string | null;
   userAgent?: string | null;
+  testEventCode?: string | null;
 };
+
+function hasEnoughUserData(userData: Record<string, unknown>) {
+  const hasMatchKeys =
+    Boolean(userData.em) ||
+    Boolean(userData.ph) ||
+    Boolean(userData.fbp) ||
+    Boolean(userData.fbc);
+  const hasClient =
+    Boolean(userData.client_ip_address) && Boolean(userData.client_user_agent);
+  return hasMatchKeys || hasClient;
+}
 
 export async function sendMetaCapiEvent(input: MetaEventInput) {
   const token = process.env.META_CAPI_ACCESS_TOKEN;
@@ -64,7 +76,14 @@ export async function sendMetaCapiEvent(input: MetaEventInput) {
   if (input.clientIp) userData.client_ip_address = input.clientIp;
   if (input.userAgent) userData.client_user_agent = input.userAgent;
 
-  const payload = {
+  if (!hasEnoughUserData(userData)) {
+    return { ok: false as const };
+  }
+
+  const testEventCode =
+    input.testEventCode?.trim() || process.env.META_TEST_EVENT_CODE?.trim();
+
+  const payload: Record<string, unknown> = {
     data: [
       {
         event_name: input.eventName,
@@ -77,6 +96,10 @@ export async function sendMetaCapiEvent(input: MetaEventInput) {
     ],
     access_token: token,
   };
+
+  if (testEventCode) {
+    payload.test_event_code = testEventCode;
+  }
 
   const response = await fetch(
     `https://graph.facebook.com/v21.0/${META_PIXEL_ID}/events`,
@@ -97,11 +120,18 @@ export async function sendMetaCapiEvent(input: MetaEventInput) {
   return { ok: true as const };
 }
 
+function firstIp(value: string) {
+  const raw = value.split(",")[0]?.trim() ?? "";
+  if (!raw) return undefined;
+  if (/^\d+\.\d+\.\d+\.\d+:\d+$/.test(raw)) return raw.split(":")[0];
+  return raw;
+}
+
 export async function clientContextFromRequest() {
   const headerList = await headers();
   const forwarded = headerList.get("x-forwarded-for") ?? "";
   const clientIp =
-    forwarded.split(",")[0]?.trim() ||
+    firstIp(forwarded) ||
     headerList.get("x-real-ip") ||
     headerList.get("cf-connecting-ip") ||
     undefined;
