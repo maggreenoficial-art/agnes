@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { logoutAdmin } from "@/app/admin/actions";
 import { OfficialMarks } from "@/components/Brand";
 
@@ -24,17 +23,11 @@ export function AdminHeader({ total }: { total: number }) {
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <Link
-          href="/analisedefunil"
-          className="rounded-full bg-lime px-4 py-2 text-sm font-bold text-ink hover:bg-lime-deep"
-        >
-          Análise de funil
-        </Link>
         {/* File download, not a client navigation */}
         {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
         <a
           href="/admin/export/excel"
-          className="rounded-full border border-white/20 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10"
+          className="rounded-full bg-lime px-4 py-2 text-sm font-bold text-ink hover:bg-lime-deep"
         >
           Excel da lista
         </a>
