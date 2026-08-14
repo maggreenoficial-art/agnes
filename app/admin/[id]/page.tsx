@@ -50,11 +50,12 @@ export default async function AdminProfilePage({
   return (
     <main className="min-h-[100svh] bg-[#f3efe4] px-5 py-8 sm:px-8">
       <div className="mx-auto max-w-5xl space-y-6">
-        <header className="flex flex-wrap items-center justify-between gap-4 rounded-[28px] bg-green-deep px-6 py-5">
-          <div className="flex items-center gap-4">
+        <header className="flex flex-col gap-4 rounded-[28px] bg-green-deep px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
             <OfficialMarks
-              sealClassName="size-12"
-              mixClassName="h-6 w-auto"
+              className="shrink-0"
+              sealClassName="size-10 sm:size-12"
+              mixClassName="h-5 w-auto max-w-[140px] sm:h-6 sm:max-w-none"
             />
             <Link
               href="/admin"

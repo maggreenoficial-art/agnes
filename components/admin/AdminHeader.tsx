@@ -5,13 +5,14 @@ import { OfficialMarks } from "@/components/Brand";
 
 export function AdminHeader({ total }: { total: number }) {
   return (
-    <header className="flex flex-wrap items-center justify-between gap-4">
-      <div className="flex items-center gap-4">
+    <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
         <OfficialMarks
-          sealClassName="size-12 sm:size-14"
-          mixClassName="h-6 w-auto sm:h-7"
+          className="shrink-0"
+          sealClassName="size-10 sm:size-14"
+          mixClassName="h-5 w-auto max-w-[140px] sm:h-7 sm:max-w-none"
         />
-        <div>
+        <div className="min-w-0">
           <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-lime">
             Processo seletivo
           </p>
