@@ -64,14 +64,22 @@ export default async function AdminProfilePage({
               ← Todos os perfis
             </Link>
           </div>
-          <form action={logoutAdmin}>
-            <button
-              type="submit"
-              className="rounded-full border border-white/20 px-4 py-2 text-sm font-semibold text-white/80 hover:bg-white/10"
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href="/analisedefunil"
+              className="rounded-full bg-lime px-4 py-2 text-sm font-bold text-ink hover:bg-lime-deep"
             >
-              Sair
-            </button>
-          </form>
+              Análise de funil
+            </Link>
+            <form action={logoutAdmin}>
+              <button
+                type="submit"
+                className="rounded-full border border-white/20 px-4 py-2 text-sm font-semibold text-white/80 hover:bg-white/10"
+              >
+                Sair
+              </button>
+            </form>
+          </div>
         </header>
 
         <section className="rounded-[28px] bg-white p-6 text-ink sm:p-8">
