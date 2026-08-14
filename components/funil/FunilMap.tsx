@@ -4,26 +4,29 @@ import { useEffect, useRef, useState } from "react";
 import type { FunilEtapa, FunilSessao } from "@/lib/funil";
 import { FUNIL_LABEL } from "@/lib/funil";
 
-type LeafletMap = {
+interface LeafletLayer {
   remove: () => void;
-  setView: (latlng: [number, number], zoom: number) => void;
-  invalidateSize: () => void;
-};
+  options?: unknown;
+  bindPopup: (html: string) => LeafletLayer;
+  addTo: (map: LeafletMap) => LeafletLayer;
+}
 
-type LeafletModule = {
-  map: (el: HTMLElement, opts?: { scrollWheelZoom?: boolean }) => LeafletMap & {
-    eachLayer: (fn: (layer: { remove: () => void; options?: unknown }) => void) => void;
-    addLayer: (layer: unknown) => void;
-  };
-  tileLayer: (url: string, opts: Record<string, unknown>) => { addTo: (map: unknown) => void };
+interface LeafletMap {
+  remove: () => void;
+  setView: (latlng: [number, number], zoom: number) => LeafletMap;
+  invalidateSize: () => void;
+  eachLayer: (fn: (layer: LeafletLayer) => void) => void;
+  addLayer: (layer: unknown) => void;
+}
+
+interface LeafletModule {
+  map: (el: HTMLElement, opts?: { scrollWheelZoom?: boolean }) => LeafletMap;
+  tileLayer: (url: string, opts: Record<string, unknown>) => LeafletLayer;
   circleMarker: (
     latlng: [number, number],
     opts: Record<string, unknown>,
-  ) => {
-    bindPopup: (html: string) => unknown;
-    addTo: (map: unknown) => void;
-  };
-};
+  ) => LeafletLayer;
+}
 
 declare global {
   interface Window {
@@ -103,7 +106,8 @@ export function FunilMap({ sessoes }: { sessoes: FunilSessao[] }) {
     let cancelled = false;
     void loadLeaflet().then((L) => {
       if (cancelled || !root.current || mapRef.current) return;
-      const map = L.map(root.current, { scrollWheelZoom: false }).setView(RAMOS, 11);
+      const map = L.map(root.current, { scrollWheelZoom: false });
+      map.setView(RAMOS, 11);
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: "&copy; OpenStreetMap",
         maxZoom: 16,
