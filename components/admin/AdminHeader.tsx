@@ -23,6 +23,12 @@ export function AdminHeader({ total }: { total: number }) {
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-2">
+        <a
+          href="/analisedefunil"
+          className="rounded-full border border-white/20 px-4 py-2 text-sm font-semibold text-white/80 hover:bg-white/10"
+        >
+          Funil
+        </a>
         {/* File download, not a client navigation */}
         {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
         <a

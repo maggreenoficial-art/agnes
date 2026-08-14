@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import {
   clearAdminCookie,
   isAdmin,
+  safeAdminPath,
   setAdminCookie,
 } from "@/lib/admin-auth";
 import { getInscricao, removeInscricao, setInscricaoStatus } from "@/lib/admin-data";
@@ -31,7 +32,7 @@ export async function loginAdmin(formData: FormData) {
   }
 
   await setAdminCookie();
-  redirect("/admin");
+  redirect(safeAdminPath(String(formData.get("next") ?? "")));
 }
 
 export async function logoutAdmin() {

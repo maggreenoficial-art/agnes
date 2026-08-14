@@ -17,8 +17,10 @@ import {
 import { LogoImperatriz, WindowDots } from "./Brand";
 import { AddressField } from "./AddressField";
 import { savePendingLead, trackMetaEvent } from "./MetaPixel";
+import { reportFunil } from "./FunilPresence";
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
+const MIN_FILE_BYTES = 8 * 1024;
 const PHOTO_SLOTS = [
   { id: "rosto", label: "Rosto" },
   { id: "meio", label: "Meio corpo" },
@@ -128,6 +130,19 @@ export function InscricaoForm() {
     };
   }, []);
 
+  useEffect(() => {
+    const campos = (Object.keys(form) as Array<keyof FormDataState>).filter(
+      (key) => form[key].trim().length > 0,
+    );
+    const fotoCount = fotos.filter(Boolean).length;
+    if (campos.length === 0 && fotoCount === 0) return;
+    reportFunil({
+      etapa: fotoCount > 0 ? "fotos" : "preenchendo",
+      campos: fotoCount > 0 ? [...campos, "fotos"] : [...campos],
+      fotos: fotoCount,
+    });
+  }, [form, fotos]);
+
   function update<K extends keyof FormDataState>(key: K, value: FormDataState[K]) {
     setForm((current) => ({ ...current, [key]: value }));
     setErrors((current) => ({ ...current, [key]: undefined }));
@@ -214,6 +229,13 @@ export function InscricaoForm() {
         }));
         return;
       }
+      if (file.size < MIN_FILE_BYTES) {
+        setErrors((current) => ({
+          ...current,
+          fotos: `A foto "${file.name}" não carregou. No iPhone, espere a imagem aparecer e tente de novo — às vezes ela ainda está no iCloud.`,
+        }));
+        return;
+      }
       if (file.size > MAX_FILE_BYTES) {
         setErrors((current) => ({
           ...current,
@@ -224,6 +246,7 @@ export function InscricaoForm() {
     }
 
     setStatus("working");
+    reportFunil({ etapa: "enviando" });
 
     try {
       const inscricaoId = crypto.randomUUID();
@@ -273,6 +296,8 @@ export function InscricaoForm() {
         throw insertError;
       }
 
+      reportFunil({ etapa: "inscrita" });
+
       const parts = form.nomeCompleto.trim().split(/\s+/);
       const eventId = crypto.randomUUID();
       savePendingLead({
@@ -310,6 +335,7 @@ export function InscricaoForm() {
       </div>
       <form
         onSubmit={onSubmit}
+        onFocusCapture={() => reportFunil({ etapa: "formulario" })}
         className="relative overflow-hidden rounded-[28px] bg-white text-ink shadow-[0_30px_80px_rgba(0,0,0,0.28)]"
         noValidate
       >
@@ -544,6 +570,14 @@ export function InscricaoForm() {
                         setErrors((current) => ({
                           ...current,
                           fotos: "Use arquivos JPG, PNG, WEBP ou HEIC.",
+                        }));
+                        return;
+                      }
+                      if (selected.size < MIN_FILE_BYTES) {
+                        setErrors((current) => ({
+                          ...current,
+                          fotos:
+                            "Essa foto não carregou por completo. Espere ela aparecer na galeria e selecione de novo.",
                         }));
                         return;
                       }

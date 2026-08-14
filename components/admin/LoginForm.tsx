@@ -4,7 +4,7 @@ import { useState } from "react";
 import { loginAdmin } from "@/app/admin/actions";
 import { LogoImperatriz, WindowDots } from "@/components/Brand";
 
-export function LoginForm() {
+export function LoginForm({ next = "/admin" }: { next?: string }) {
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
 
@@ -37,7 +37,7 @@ export function LoginForm() {
             Área interna
           </p>
           <h1 className="mt-2 font-display text-3xl font-semibold">
-            Perfis recebidos
+            Área da equipe
           </h1>
           <p className="mt-2 text-sm leading-6 text-ink/55">
             Entre para avaliar as inscrições da seleção Mix Models × Instituto
@@ -46,6 +46,7 @@ export function LoginForm() {
         </div>
         <label className="block space-y-2">
           <span className="text-sm font-medium text-ink/80">Senha</span>
+          <input type="hidden" name="next" value={next} />
           <input
             type="password"
             name="password"

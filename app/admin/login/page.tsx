@@ -1,11 +1,17 @@
 import { redirect } from "next/navigation";
 import { LoginForm } from "@/components/admin/LoginForm";
 import { InstitutoSeal, LogoMixModels } from "@/components/Brand";
-import { isAdmin } from "@/lib/admin-auth";
+import { isAdmin, safeAdminPath } from "@/lib/admin-auth";
 
-export default async function AdminLoginPage() {
+export default async function AdminLoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ next?: string }>;
+}) {
+  const { next } = await searchParams;
+  const dest = safeAdminPath(next);
   if (await isAdmin()) {
-    redirect("/admin");
+    redirect(dest);
   }
 
   return (
@@ -15,7 +21,7 @@ export default async function AdminLoginPage() {
         <InstitutoSeal className="size-11 sm:size-12" priority />
       </header>
       <section className="mx-auto mt-16 w-full max-w-md">
-        <LoginForm />
+        <LoginForm next={dest} />
       </section>
     </main>
   );

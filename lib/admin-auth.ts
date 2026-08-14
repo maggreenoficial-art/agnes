@@ -52,3 +52,10 @@ export async function clearAdminCookie() {
 export function getAdminSecret() {
   return adminPassword();
 }
+
+export function safeAdminPath(value?: string | null) {
+  const raw = (value ?? "").split("?")[0];
+  if (raw === "/analisedefunil" || raw === "/admin") return raw;
+  if (raw.startsWith("/admin/")) return "/admin";
+  return "/admin";
+}

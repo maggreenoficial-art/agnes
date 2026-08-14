@@ -3,6 +3,7 @@ import Script from "next/script";
 import { Suspense } from "react";
 import { Outfit, Plus_Jakarta_Sans } from "next/font/google";
 import { MetaPageView } from "@/components/MetaPixel";
+import { FunilPresence } from "@/components/FunilPresence";
 import "./globals.css";
 
 const outfit = Outfit({
@@ -65,6 +66,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         </noscript>
         <Suspense fallback={null}>
           <MetaPageView />
+        </Suspense>
+        <Suspense fallback={null}>
+          <FunilPresence />
         </Suspense>
       </body>
     </html>

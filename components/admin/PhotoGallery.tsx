@@ -2,6 +2,42 @@
 
 import { useEffect, useState } from "react";
 
+function PhotoThumb({
+  src,
+  alt,
+  onOpen,
+}: {
+  src: string;
+  alt: string;
+  onOpen: () => void;
+}) {
+  const [broken, setBroken] = useState(false);
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        if (!broken) onOpen();
+      }}
+      className="group relative aspect-[3/4] overflow-hidden rounded-2xl bg-cream"
+    >
+      {broken ? (
+        <span className="grid size-full place-items-center px-3 text-center text-xs font-medium text-ink/45">
+          Arquivo vazio — a candidata precisa enviar de novo
+        </span>
+      ) : (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={src}
+          alt={alt}
+          className="size-full object-cover transition duration-300 group-hover:scale-105"
+          onError={() => setBroken(true)}
+        />
+      )}
+    </button>
+  );
+}
+
 export function PhotoGallery({
   fotos,
   nome,
@@ -32,19 +68,12 @@ export function PhotoGallery({
     <>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         {fotos.map((src, index) => (
-          <button
+          <PhotoThumb
             key={`${src}-${index}`}
-            type="button"
-            onClick={() => setActive(index)}
-            className="group relative aspect-[3/4] overflow-hidden rounded-2xl bg-cream"
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={src}
-              alt={`${nome} — foto ${index + 1}`}
-              className="size-full object-cover transition duration-300 group-hover:scale-105"
-            />
-          </button>
+            src={src}
+            alt={`${nome} — foto ${index + 1}`}
+            onOpen={() => setActive(index)}
+          />
         ))}
       </div>
 
