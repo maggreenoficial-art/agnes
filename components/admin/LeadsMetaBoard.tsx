@@ -3,9 +3,17 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { deleteLeadMeta, importMetaCsv } from "@/app/admin/actions";
-import { formatDateTime, whatsappUrl } from "@/lib/inscricao";
+import { formatDateTime, instagramUrl, whatsappUrl } from "@/lib/inscricao";
+import { leadMetaConfirmado } from "@/lib/lead-meta-status";
 import type { LeadMeta } from "@/lib/leads-meta";
 import { PhotoGallery } from "@/components/admin/PhotoGallery";
+
+type StatusFiltro = "todas" | "pendente" | "confirmado";
+
+function pedidoFotosWhatsapp(nome: string) {
+  const primeiro = nome.trim().split(/\s+/)[0] || "";
+  return `Oi, ${primeiro}! Para completar sua inscrição no casting Agnes Pimentel + Mix Models, envie 5 fotos aqui: https://www.agnespimentel.com/fotos`;
+}
 
 function extraLabel(key: string) {
   const normalized = key
@@ -41,24 +49,45 @@ export function LeadsMetaBoard({
   const [error, setError] = useState("");
   const [pending, startTransition] = useTransition();
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [filter, setFilter] = useState<StatusFiltro>("pendente");
+
+  const counts = useMemo(() => {
+    const confirmado = leads.filter(leadMetaConfirmado).length;
+    return {
+      todas: leads.length,
+      confirmado,
+      pendente: leads.length - confirmado,
+    };
+  }, [leads]);
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    if (!needle) return leads;
-    return leads.filter((item) =>
-      [
-        item.nome_completo,
-        item.email,
-        item.telefone,
-        item.cidade,
-        item.endereco,
-        item.campanha,
-        ...Object.values(item.extras ?? {}),
-      ]
-        .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(needle)),
-    );
-  }, [leads, query]);
+    return leads
+      .filter((item) => {
+        const confirmado = leadMetaConfirmado(item);
+        if (filter === "pendente" && confirmado) return false;
+        if (filter === "confirmado" && !confirmado) return false;
+        if (!needle) return true;
+        return [
+          item.nome_completo,
+          item.email,
+          item.telefone,
+          item.instagram,
+          item.cidade,
+          item.endereco,
+          item.campanha,
+          ...Object.values(item.extras ?? {}),
+        ]
+          .filter(Boolean)
+          .some((value) => String(value).toLowerCase().includes(needle));
+      })
+      .sort((a, b) => {
+        const aOk = leadMetaConfirmado(a);
+        const bOk = leadMetaConfirmado(b);
+        if (aOk !== bOk) return aOk ? 1 : -1;
+        return 0;
+      });
+  }, [leads, query, filter]);
 
   function onUpload(formData: FormData) {
     setError("");
@@ -149,10 +178,52 @@ export function LeadsMetaBoard({
         ) : null}
       </section>
 
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { label: "Todos", value: counts.todas },
+          { label: "Pendentes", value: counts.pendente },
+          { label: "Confirmados", value: counts.confirmado },
+        ].map((stat) => (
+          <div
+            key={stat.label}
+            className="rounded-2xl bg-white px-4 py-4 text-ink shadow-[0_8px_30px_rgba(4,23,15,0.06)]"
+          >
+            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-ink/40">
+              {stat.label}
+            </p>
+            <p className="mt-1 font-display text-3xl font-semibold">
+              {stat.value}
+            </p>
+          </div>
+        ))}
+      </div>
+
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <p className="text-sm font-semibold text-ink/60">
-          {filtered.length} lead{filtered.length === 1 ? "" : "s"}
-        </p>
+        <div className="flex flex-wrap gap-2">
+          {(
+            [
+              { id: "todas", label: "Todas" },
+              { id: "pendente", label: "Pendentes" },
+              { id: "confirmado", label: "Confirmados" },
+            ] as const
+          ).map((item) => {
+            const active = filter === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setFilter(item.id)}
+                className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                  active
+                    ? "bg-lime text-ink"
+                    : "bg-white text-ink/60 hover:bg-white/80"
+                }`}
+              >
+                {item.label}
+              </button>
+            );
+          })}
+        </div>
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
@@ -167,13 +238,14 @@ export function LeadsMetaBoard({
           <p className="mt-2 text-sm text-ink/50">
             {leads.length === 0
               ? "Envie o CSV do formulário instantâneo para aparecerem aqui."
-              : "Tente outro termo de busca."}
+              : "Tente outro termo ou filtro."}
           </p>
         </div>
       ) : (
         <div className="grid gap-5 lg:grid-cols-2">
           {filtered.map((item) => {
             const answers = extraEntries(item.extras);
+            const confirmado = leadMetaConfirmado(item);
             return (
               <article
                 key={item.id}
@@ -181,7 +253,16 @@ export function LeadsMetaBoard({
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <h3 className="font-display text-xl font-semibold leading-snug">
+                    <span
+                      className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${
+                        confirmado
+                          ? "bg-green text-white"
+                          : "bg-gold/90 text-ink"
+                      }`}
+                    >
+                      {confirmado ? "Confirmado" : "Pendente"}
+                    </span>
+                    <h3 className="mt-2 font-display text-xl font-semibold leading-snug">
                       {item.nome_completo}
                     </h3>
                     <p className="mt-1 text-sm text-ink/50">
@@ -217,7 +298,12 @@ export function LeadsMetaBoard({
                     <dd className="mt-1">
                       {item.telefone ? (
                         <a
-                          href={whatsappUrl(item.telefone)}
+                          href={whatsappUrl(
+                            item.telefone,
+                            confirmado
+                              ? undefined
+                              : pedidoFotosWhatsapp(item.nome_completo),
+                          )}
                           target="_blank"
                           rel="noreferrer"
                           className="font-semibold text-green hover:underline"
@@ -240,6 +326,25 @@ export function LeadsMetaBoard({
                           className="text-ink/80 hover:underline"
                         >
                           {item.email}
+                        </a>
+                      ) : (
+                        <span className="text-ink/35">—</span>
+                      )}
+                    </dd>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <dt className="text-[11px] font-bold uppercase tracking-[0.14em] text-ink/35">
+                      Instagram
+                    </dt>
+                    <dd className="mt-1">
+                      {item.instagram ? (
+                        <a
+                          href={instagramUrl(item.instagram)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="font-semibold text-green hover:underline"
+                        >
+                          {item.instagram}
                         </a>
                       ) : (
                         <span className="text-ink/35">—</span>

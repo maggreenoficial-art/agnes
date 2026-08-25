@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { maskPhone, onlyDigits, sanitizeFileName } from "@/lib/masks";
+import { maskPhone, normalizeInstagram, onlyDigits, sanitizeFileName } from "@/lib/masks";
 import { LogoImperatriz, WindowDots } from "./Brand";
 import { reportFunil } from "./FunilPresence";
 
@@ -33,6 +33,7 @@ function isAllowedImage(file: File) {
 export function FotosForm({ nomeInicial = "" }: { nomeInicial?: string }) {
   const [nome, setNome] = useState(nomeInicial);
   const [telefone, setTelefone] = useState("");
+  const [instagram, setInstagram] = useState("");
   const [fotos, setFotos] = useState<(File | null)[]>([null, null, null, null, null]);
   const [previews, setPreviews] = useState<(string | null)[]>([
     null,
@@ -45,6 +46,7 @@ export function FotosForm({ nomeInicial = "" }: { nomeInicial?: string }) {
   const [errors, setErrors] = useState<{
     nome?: string;
     telefone?: string;
+    instagram?: string;
     fotos?: string;
   }>({});
   const [honeypot, setHoneypot] = useState("");
@@ -62,13 +64,18 @@ export function FotosForm({ nomeInicial = "" }: { nomeInicial?: string }) {
 
   useEffect(() => {
     const fotoCount = fotos.filter(Boolean).length;
-    if (!nome.trim() && !telefone.trim() && fotoCount === 0) return;
+    if (!nome.trim() && !telefone.trim() && !instagram.trim() && fotoCount === 0) return;
     reportFunil({
       etapa: fotoCount > 0 ? "fotos" : "preenchendo",
-      campos: ["nomeCompleto", ...(telefone ? ["telefone"] : []), ...(fotoCount ? ["fotos"] : [])],
+      campos: [
+        ...(nome.trim() ? ["nomeCompleto"] : []),
+        ...(telefone ? ["telefone"] : []),
+        ...(instagram.trim() ? ["instagram"] : []),
+        ...(fotoCount ? ["fotos"] : []),
+      ],
       fotos: fotoCount,
     });
-  }, [nome, telefone, fotos]);
+  }, [nome, telefone, instagram, fotos]);
 
   function setFoto(index: number, file: File | null) {
     setFotos((current) => {
@@ -87,12 +94,20 @@ export function FotosForm({ nomeInicial = "" }: { nomeInicial?: string }) {
   }
 
   function validate() {
-    const next: { nome?: string; telefone?: string; fotos?: string } = {};
+    const next: {
+      nome?: string;
+      telefone?: string;
+      instagram?: string;
+      fotos?: string;
+    } = {};
     if (nome.trim().split(/\s+/).length < 2) {
       next.nome = "Informe nome e sobrenome.";
     }
     if (onlyDigits(telefone).length < 10) {
       next.telefone = "Informe o mesmo WhatsApp do formulário do Instagram.";
+    }
+    if (normalizeInstagram(instagram).length < 2) {
+      next.instagram = "Informe o Instagram com o perfil aberto.";
     }
     if (fotos.some((file) => !file)) {
       next.fotos = "Anexe as 5 fotos pedidas.";
@@ -163,6 +178,7 @@ export function FotosForm({ nomeInicial = "" }: { nomeInicial?: string }) {
       const { error } = await supabase.rpc("enviar_fotos_lead", {
         p_nome: nome.trim(),
         p_telefone: maskPhone(telefone),
+        p_instagram: normalizeInstagram(instagram),
         p_fotos: fotoUrls,
       });
 
@@ -224,8 +240,8 @@ export function FotosForm({ nomeInicial = "" }: { nomeInicial?: string }) {
             </h2>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-ink/60">
               Você já preencheu o formulário no Instagram. Aqui só precisamos do
-              seu nome, do mesmo WhatsApp e das fotos para a Mix Models avaliar
-              o perfil.
+              seu nome, WhatsApp, Instagram e das fotos para a Mix Models
+              avaliar o perfil.
             </p>
           </div>
 
@@ -256,7 +272,7 @@ export function FotosForm({ nomeInicial = "" }: { nomeInicial?: string }) {
                 <span className="block text-xs text-red-600">{errors.nome}</span>
               ) : null}
             </label>
-            <label className="block space-y-2 sm:col-span-2">
+            <label className="block space-y-2">
               <span className="block text-sm font-medium text-ink/80">
                 WhatsApp <span className="ml-1 text-green">*</span>
               </span>
@@ -276,6 +292,27 @@ export function FotosForm({ nomeInicial = "" }: { nomeInicial?: string }) {
               </span>
               {errors.telefone ? (
                 <span className="block text-xs text-red-600">{errors.telefone}</span>
+              ) : null}
+            </label>
+            <label className="block space-y-2">
+              <span className="block text-sm font-medium text-ink/80">
+                Instagram <span className="ml-1 text-green">*</span>
+              </span>
+              <input
+                className={inputClass}
+                placeholder="@seu.instagram"
+                value={instagram}
+                onChange={(event) => {
+                  setInstagram(event.target.value);
+                  setErrors((current) => ({ ...current, instagram: undefined }));
+                }}
+                onBlur={() => setInstagram(normalizeInstagram(instagram))}
+              />
+              <span className="block text-xs text-ink/45">
+                Deixe o perfil aberto, por favor.
+              </span>
+              {errors.instagram ? (
+                <span className="block text-xs text-red-600">{errors.instagram}</span>
               ) : null}
             </label>
           </div>

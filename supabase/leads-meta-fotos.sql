@@ -1,15 +1,18 @@
 -- Rode no SQL Editor depois do leads-meta.sql
 -- https://supabase.com/dashboard/project/acbksachtpypwtbgwyxh/sql/new
 --
--- Fotos enviadas pela página /fotos (quem veio do formulário instantâneo).
+-- Fotos e Instagram enviados pela página /fotos.
 
 alter table public.leads_meta
   add column if not exists fotos text[] not null default '{}'::text[];
 
+drop function if exists public.enviar_fotos_lead(text, text, text[]);
+
 create or replace function public.enviar_fotos_lead(
   p_nome text,
   p_telefone text,
-  p_fotos text[]
+  p_fotos text[],
+  p_instagram text default ''
 )
 returns json
 language plpgsql
@@ -19,10 +22,12 @@ as $$
 declare
   nome_limpo text;
   fone_limpo text;
+  insta_limpo text;
   alvo uuid;
 begin
   nome_limpo := regexp_replace(lower(trim(p_nome)), '\s+', ' ', 'g');
   fone_limpo := regexp_replace(coalesce(p_telefone, ''), '\D', '', 'g');
+  insta_limpo := left(trim(coalesce(p_instagram, '')), 80);
   if left(fone_limpo, 2) = '55' and length(fone_limpo) >= 12 then
     fone_limpo := substring(fone_limpo from 3);
   end if;
@@ -32,6 +37,9 @@ begin
   end if;
   if length(fone_limpo) < 10 then
     raise exception 'invalid phone' using errcode = '22023';
+  end if;
+  if length(regexp_replace(insta_limpo, '^@', '')) < 2 then
+    raise exception 'invalid instagram' using errcode = '22023';
   end if;
   if p_fotos is null or cardinality(p_fotos) <> 5 then
     raise exception 'invalid photos' using errcode = '22023';
@@ -73,7 +81,9 @@ begin
 
   if alvo is not null then
     update public.leads_meta
-      set fotos = p_fotos
+      set
+        fotos = p_fotos,
+        instagram = insta_limpo
     where id = alvo;
     return json_build_object('ok', true, 'matched', true);
   end if;
@@ -82,6 +92,7 @@ begin
     meta_lead_id,
     nome_completo,
     telefone,
+    instagram,
     fotos,
     plataforma
   )
@@ -89,6 +100,7 @@ begin
     left('fotos:' || gen_random_uuid()::text, 120),
     left(trim(p_nome), 160),
     left(trim(p_telefone), 40),
+    insta_limpo,
     p_fotos,
     'site'
   );
@@ -97,5 +109,5 @@ begin
 end;
 $$;
 
-revoke all on function public.enviar_fotos_lead(text, text, text[]) from public;
-grant execute on function public.enviar_fotos_lead(text, text, text[]) to anon, authenticated;
+revoke all on function public.enviar_fotos_lead(text, text, text[], text) from public;
+grant execute on function public.enviar_fotos_lead(text, text, text[], text) to anon, authenticated;

@@ -102,10 +102,12 @@ export function instagramUrl(handle: string) {
   return `https://instagram.com/${handle.replace(/^@/, "")}`;
 }
 
-export function whatsappUrl(phone: string) {
+export function whatsappUrl(phone: string, text?: string) {
   const digits = phone.replace(/\D/g, "");
   const withCountry = digits.startsWith("55") ? digits : `55${digits}`;
-  return `https://wa.me/${withCountry}`;
+  const base = `https://wa.me/${withCountry}`;
+  if (!text?.trim()) return base;
+  return `${base}?text=${encodeURIComponent(text.trim())}`;
 }
 
 export function normalizeStatus(value: string | null | undefined): InscricaoStatus {

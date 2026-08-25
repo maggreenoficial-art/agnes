@@ -5,6 +5,7 @@ import { LeadsMetaBoard } from "@/components/admin/LeadsMetaBoard";
 import { isAdmin } from "@/lib/admin-auth";
 import { listInscricoes } from "@/lib/admin-data";
 import { listLeadsMeta } from "@/lib/leads-meta";
+import { leadMetaConfirmado } from "@/lib/lead-meta-status";
 import { redirect } from "next/navigation";
 
 function SetupCard({
@@ -41,10 +42,12 @@ export default async function AdminPage({
     listLeadsMeta(),
   ]);
 
-  const metaCount =
+  const metaLeads =
     leadsResult.error && leadsResult.error !== "sql-missing"
-      ? 0
-      : leadsResult.data.length;
+      ? []
+      : leadsResult.data;
+  const metaCount = metaLeads.length;
+  const metaConfirmados = metaLeads.filter(leadMetaConfirmado).length;
 
   return (
     <main className="min-h-[100svh] bg-[#f3efe4] px-5 py-8 sm:px-8">
@@ -57,7 +60,12 @@ export default async function AdminPage({
           />
         </div>
 
-        <AdminTabs aba={tab} perfis={data.length} meta={metaCount} />
+        <AdminTabs
+          aba={tab}
+          perfis={data.length}
+          meta={metaCount}
+          metaConfirmados={metaConfirmados}
+        />
 
         {tab === "meta" ? (
           leadsResult.error && leadsResult.error !== "sql-missing" ? (

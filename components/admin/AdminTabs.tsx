@@ -6,12 +6,14 @@ export function AdminTabs({
   aba,
   perfis,
   meta,
+  metaConfirmados,
 }: {
   aba: "perfis" | "meta";
   perfis: number;
   meta: number;
+  metaConfirmados: number;
 }) {
-  const total = perfis + meta;
+  const total = perfis + metaConfirmados;
   const percent = Math.min(100, (total / META_LEADS) * 100);
 
   return (
