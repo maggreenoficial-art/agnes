@@ -3,7 +3,15 @@
 import { logoutAdmin } from "@/app/admin/actions";
 import { OfficialMarks } from "@/components/Brand";
 
-export function AdminHeader({ total }: { total: number }) {
+export function AdminHeader({
+  total,
+  title = "Perfis recebidos",
+  showExcel = true,
+}: {
+  total: number;
+  title?: string;
+  showExcel?: boolean;
+}) {
   return (
     <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
@@ -17,20 +25,24 @@ export function AdminHeader({ total }: { total: number }) {
             Processo seletivo
           </p>
           <h1 className="font-display text-2xl font-semibold text-white sm:text-3xl">
-            Perfis recebidos
+            {title}
             <span className="ml-2 text-lime">{total}</span>
           </h1>
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        {/* File download, not a client navigation */}
-        {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-        <a
-          href="/admin/export/excel"
-          className="rounded-full bg-lime px-4 py-2 text-sm font-bold text-ink hover:bg-lime-deep"
-        >
-          Excel da lista
-        </a>
+        {showExcel ? (
+          <>
+            {/* File download, not a client navigation */}
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+            <a
+              href="/admin/export/excel"
+              className="rounded-full bg-lime px-4 py-2 text-sm font-bold text-ink hover:bg-lime-deep"
+            >
+              Excel da lista
+            </a>
+          </>
+        ) : null}
         <form action={logoutAdmin}>
           <button
             type="submit"
