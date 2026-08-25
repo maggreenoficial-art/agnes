@@ -6,7 +6,7 @@ import { FotosForm } from "@/components/FotosForm";
 export const metadata = {
   title: "Enviar fotos | Agnes Pimentel + Mix Models",
   description:
-    "Quem já preencheu o formulário no Instagram envia aqui o nome, WhatsApp, Instagram e as 5 fotos do casting.",
+    "Quem já preencheu o formulário no Instagram envia aqui o nome, e-mail, WhatsApp, Instagram e as 5 fotos do casting.",
 };
 
 export default async function FotosPage({

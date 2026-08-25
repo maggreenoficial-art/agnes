@@ -56,6 +56,7 @@ export function FotosForm({
   leadId?: string;
 }) {
   const [nome, setNome] = useState(nomeInicial);
+  const [email, setEmail] = useState("");
   const [telefone, setTelefone] = useState("");
   const [instagram, setInstagram] = useState("");
   const [fotos, setFotos] = useState<(File | null)[]>([null, null, null, null, null]);
@@ -69,6 +70,7 @@ export function FotosForm({
   const previewRef = useRef<(string | null)[]>([null, null, null, null, null]);
   const [errors, setErrors] = useState<{
     nome?: string;
+    email?: string;
     telefone?: string;
     instagram?: string;
     fotos?: string;
@@ -88,18 +90,19 @@ export function FotosForm({
 
   useEffect(() => {
     const fotoCount = fotos.filter(Boolean).length;
-    if (!nome.trim() && !telefone.trim() && !instagram.trim() && fotoCount === 0) return;
+    if (!nome.trim() && !email.trim() && !telefone.trim() && !instagram.trim() && fotoCount === 0) return;
     reportFunil({
       etapa: fotoCount > 0 ? "fotos" : "preenchendo",
       campos: [
         ...(nome.trim() ? ["nomeCompleto"] : []),
+        ...(email.trim() ? ["email"] : []),
         ...(telefone ? ["telefone"] : []),
         ...(instagram.trim() ? ["instagram"] : []),
         ...(fotoCount ? ["fotos"] : []),
       ],
       fotos: fotoCount,
     });
-  }, [nome, telefone, instagram, fotos]);
+  }, [nome, email, telefone, instagram, fotos]);
 
   function setFoto(index: number, file: File | null) {
     setFotos((current) => {
@@ -120,12 +123,16 @@ export function FotosForm({
   function validate() {
     const next: {
       nome?: string;
+      email?: string;
       telefone?: string;
       instagram?: string;
       fotos?: string;
     } = {};
     if (nome.trim().split(/\s+/).length < 2) {
       next.nome = "Informe nome e sobrenome.";
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      next.email = "Informe o mesmo e-mail do anúncio ou do convite.";
     }
     if (onlyDigits(telefone).length < 10) {
       next.telefone = "Informe o mesmo WhatsApp do formulário do Instagram.";
@@ -202,12 +209,14 @@ export function FotosForm({
       const payload: {
         p_nome: string;
         p_telefone: string;
+        p_email: string;
         p_instagram: string;
         p_fotos: string[];
         p_lead_id?: string;
       } = {
         p_nome: nome.trim(),
         p_telefone: maskPhone(telefone),
+        p_email: email.trim().toLowerCase(),
         p_instagram: normalizeInstagram(instagram),
         p_fotos: fotoUrls,
       };
@@ -223,6 +232,13 @@ export function FotosForm({
           message.includes("could not find the function")
         ) {
           throw new Error("sql-missing");
+        }
+        if (
+          error.code === "P0002" ||
+          message.includes("lead not found") ||
+          message.includes("not found")
+        ) {
+          throw new Error("lead-missing");
         }
         throw error;
       }
@@ -240,7 +256,9 @@ export function FotosForm({
       setSubmitError(
         error instanceof Error && error.message === "sql-missing"
           ? "Falta um passo no banco. Rode supabase/leads-meta-fotos.sql no SQL Editor do Supabase."
-          : "Não foi possível enviar as fotos agora. Tente de novo em alguns minutos.",
+          : error instanceof Error && error.message === "lead-missing"
+            ? "Não encontramos o seu pré-cadastro. Use o mesmo nome, e-mail e WhatsApp do anúncio do Instagram."
+            : "Não foi possível enviar as fotos agora. Tente de novo em alguns minutos.",
       );
       setProgress("");
     }
@@ -278,9 +296,9 @@ export function FotosForm({
               Envie as 5 fotos
             </h2>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-ink/60">
-              Você já preencheu o formulário no Instagram. Aqui só precisamos do
-              seu nome, WhatsApp, Instagram e das fotos. A equipe da Mix Models
-              avalia o perfil e você acompanha a aprovação neste mesmo cadastro.
+              Você já preencheu o formulário no Instagram. Aqui a gente só
+              completa o cadastro que já existe: nome, e-mail, WhatsApp,
+              Instagram e as 5 fotos. Nada de ficha nova.
             </p>
           </div>
 
@@ -309,6 +327,28 @@ export function FotosForm({
               />
               {errors.nome ? (
                 <span className="block text-xs text-red-600">{errors.nome}</span>
+              ) : null}
+            </label>
+            <label className="block space-y-2">
+              <span className="block text-sm font-medium text-ink/80">
+                E-mail <span className="ml-1 text-green">*</span>
+              </span>
+              <input
+                type="email"
+                className={inputClass}
+                autoComplete="email"
+                placeholder="voce@email.com"
+                value={email}
+                onChange={(event) => {
+                  setEmail(event.target.value);
+                  setErrors((current) => ({ ...current, email: undefined }));
+                }}
+              />
+              <span className="block text-xs text-ink/45">
+                O mesmo e-mail do anúncio ou do convite da Mix Models.
+              </span>
+              {errors.email ? (
+                <span className="block text-xs text-red-600">{errors.email}</span>
               ) : null}
             </label>
             <label className="block space-y-2">

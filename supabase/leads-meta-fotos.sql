@@ -117,13 +117,15 @@ revoke all on function public.promover_lead_meta_inscricao(uuid) from public;
 
 drop function if exists public.enviar_fotos_lead(text, text, text[]);
 drop function if exists public.enviar_fotos_lead(text, text, text[], text);
+drop function if exists public.enviar_fotos_lead(text, text, text[], text, uuid);
 
 create or replace function public.enviar_fotos_lead(
   p_nome text,
   p_telefone text,
   p_fotos text[],
   p_instagram text default '',
-  p_lead_id uuid default null
+  p_lead_id uuid default null,
+  p_email text default ''
 )
 returns json
 language plpgsql
@@ -133,13 +135,14 @@ as $$
 declare
   nome_limpo text;
   fone_limpo text;
+  email_limpo text;
   insta_limpo text;
   alvo uuid;
-  casou boolean := false;
   perfil uuid;
 begin
   nome_limpo := regexp_replace(lower(trim(p_nome)), '\s+', ' ', 'g');
   fone_limpo := regexp_replace(coalesce(p_telefone, ''), '\D', '', 'g');
+  email_limpo := lower(trim(coalesce(p_email, '')));
   insta_limpo := left(trim(coalesce(p_instagram, '')), 80);
   if left(fone_limpo, 2) = '55' and length(fone_limpo) >= 12 then
     fone_limpo := substring(fone_limpo from 3);
@@ -150,6 +153,9 @@ begin
   end if;
   if length(fone_limpo) < 10 then
     raise exception 'invalid phone' using errcode = '22023';
+  end if;
+  if email_limpo = '' or email_limpo not like '%_@_%.__%' then
+    raise exception 'invalid email' using errcode = '22023';
   end if;
   if length(regexp_replace(insta_limpo, '^@', '')) < 2 then
     raise exception 'invalid instagram' using errcode = '22023';
@@ -172,11 +178,20 @@ begin
   end if;
 
   if alvo is null then
+    select l.id into alvo
+    from public.leads_meta l
+    where lower(trim(l.email)) = email_limpo
+    order by coalesce(cardinality(l.fotos), 0) = 0 desc, l.created_at desc
+    limit 1;
+  end if;
+
+  if alvo is null then
     select n.id into alvo
     from (
       select
         l.id,
         l.created_at,
+        coalesce(cardinality(l.fotos), 0) as nfotos,
         case
           when left(d.digits, 2) = '55' and length(d.digits) >= 12
             then substring(d.digits from 3)
@@ -188,7 +203,12 @@ begin
       ) d
     ) n
     where n.fone = fone_limpo
-    order by n.created_at desc
+       or (
+         length(n.fone) >= 8
+         and length(fone_limpo) >= 8
+         and right(n.fone, 8) = right(fone_limpo, 8)
+       )
+    order by n.nfotos = 0 desc, n.created_at desc
     limit 1;
   end if;
 
@@ -200,47 +220,30 @@ begin
     limit 1;
   end if;
 
-  if alvo is not null then
-    casou := true;
-    update public.leads_meta
-      set
-        fotos = p_fotos,
-        instagram = insta_limpo,
-        nome_completo = left(trim(p_nome), 160),
-        telefone = left(trim(p_telefone), 40)
-    where id = alvo;
-  else
-    insert into public.leads_meta (
-      meta_lead_id,
-      nome_completo,
-      telefone,
-      instagram,
-      fotos,
-      plataforma
-    )
-    values (
-      left('fotos:' || gen_random_uuid()::text, 120),
-      left(trim(p_nome), 160),
-      left(trim(p_telefone), 40),
-      insta_limpo,
-      p_fotos,
-      'site'
-    )
-    returning id into alvo;
+  if alvo is null then
+    raise exception 'lead not found' using errcode = 'P0002';
   end if;
+
+  update public.leads_meta
+    set
+      fotos = p_fotos,
+      instagram = insta_limpo,
+      telefone = coalesce(nullif(left(trim(p_telefone), 40), ''), telefone),
+      email = coalesce(nullif(email, ''), left(email_limpo, 160))
+  where id = alvo;
 
   perfil := public.promover_lead_meta_inscricao(alvo);
 
   return json_build_object(
     'ok', true,
-    'matched', casou,
+    'matched', true,
     'inscricao_id', perfil
   );
 end;
 $$;
 
-revoke all on function public.enviar_fotos_lead(text, text, text[], text, uuid) from public;
-grant execute on function public.enviar_fotos_lead(text, text, text[], text, uuid) to anon, authenticated;
+revoke all on function public.enviar_fotos_lead(text, text, text[], text, uuid, text) from public;
+grant execute on function public.enviar_fotos_lead(text, text, text[], text, uuid, text) to anon, authenticated;
 
 alter table public.leads_meta
   add column if not exists email_fotos_em timestamptz,

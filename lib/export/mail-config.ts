@@ -20,7 +20,7 @@ export function isResendWebhookConfigured() {
 export function getLeadMailFrom() {
   return (
     process.env.EMAIL_FROM?.trim() ||
-    "Mix Models <leo.a@example.org>"
+    "Mix Models <leo.a@mixmodels.agnespimentel.com>"
   );
 }
 
