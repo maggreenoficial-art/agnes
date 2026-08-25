@@ -5,7 +5,7 @@ create table if not exists public.inscricoes (
   id uuid primary key default gen_random_uuid(),
   created_at timestamptz not null default now(),
   nome_completo text not null,
-  data_nascimento date not null,
+  data_nascimento date,
   endereco text not null,
   telefone text not null,
   email text not null,
@@ -26,6 +26,9 @@ create index if not exists inscricoes_email_idx
   on public.inscricoes (email);
 
 alter table public.inscricoes enable row level security;
+
+alter table public.inscricoes
+  alter column data_nascimento drop not null;
 
 drop policy if exists "Permitir insercao publica de inscricoes" on public.inscricoes;
 create policy "Permitir insercao publica de inscricoes"

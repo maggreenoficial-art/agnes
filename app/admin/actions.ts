@@ -9,12 +9,14 @@ import {
   setAdminCookie,
 } from "@/lib/admin-auth";
 import { getInscricao, removeInscricao, setInscricaoStatus } from "@/lib/admin-data";
-import { importLeadsMeta, removeLeadMeta } from "@/lib/leads-meta";
+import { importLeadsMeta, listLeadsMeta, markLeadsMetaEmailEnviado, removeLeadMeta } from "@/lib/leads-meta";
+import { leadMetaConfirmado, leadTemEmail } from "@/lib/lead-meta-status";
 import { parseMetaLeadsCsv } from "@/lib/meta-csv";
 import { sendProfileEmail } from "@/lib/export/email";
+import { sendLeadFotosEmail, sendLeadFotosEmailBatch } from "@/lib/export/lead-fotos-email";
 import { buildProfileExcel } from "@/lib/export/excel";
 import { fileBaseName } from "@/lib/export/fields";
-import { mailConfigError } from "@/lib/export/mail-config";
+import { leadMailConfigError, mailConfigError } from "@/lib/export/mail-config";
 import { buildProfilePdf } from "@/lib/export/pdf";
 import {
   type InscricaoStatus,
@@ -193,4 +195,109 @@ export async function deleteLeadMeta(id: string) {
 
   revalidatePath("/admin");
   return { ok: true };
+}
+
+const EMAIL_BATCH = 80;
+
+export async function emailLeadMetaFotos(id: string) {
+  if (!(await isAdmin())) {
+    return { error: "Sessão expirada. Entre de novo." };
+  }
+
+  const configError = leadMailConfigError();
+  if (configError) return { error: configError };
+
+  const { data, error } = await listLeadsMeta();
+  if (error) return { error: error === "sql-missing" ? "Falta rodar supabase/leads-meta-fotos.sql no Supabase." : error };
+
+  const lead = data.find((item) => item.id === id);
+  if (!lead) return { error: "Lead não encontrado." };
+  if (leadMetaConfirmado(lead)) {
+    return { error: "Esse cadastro já está confirmado com fotos." };
+  }
+  if (!leadTemEmail(lead)) {
+    return { error: "Esse lead não tem e-mail." };
+  }
+
+  let emailId: string | null = null;
+  try {
+    const sent = await sendLeadFotosEmail({
+      nome: lead.nome_completo,
+      email: lead.email,
+      leadId: lead.id,
+    });
+    emailId = sent.id;
+  } catch (caught) {
+    console.error(caught);
+    return {
+      error:
+        caught instanceof Error
+          ? caught.message
+          : "Não foi possível enviar o e-mail agora.",
+    };
+  }
+
+  const marked = await markLeadsMetaEmailEnviado([
+    { id: lead.id, emailId },
+  ]);
+  if (marked.error && marked.error !== "sql-missing") {
+    return { error: marked.error };
+  }
+
+  revalidatePath("/admin");
+  return { ok: true as const, to: lead.email };
+}
+
+export async function emailLeadsMetaPendentes() {
+  if (!(await isAdmin())) {
+    return { error: "Sessão expirada. Entre de novo." };
+  }
+
+  const configError = leadMailConfigError();
+  if (configError) return { error: configError };
+
+  const { data, error } = await listLeadsMeta();
+  if (error) return { error: error === "sql-missing" ? "Falta rodar supabase/leads-meta-fotos.sql no Supabase." : error };
+
+  const fila = data.filter(
+    (item) =>
+      !leadMetaConfirmado(item) && leadTemEmail(item) && !item.email_fotos_em,
+  );
+  const lote = fila.slice(0, EMAIL_BATCH);
+  if (lote.length === 0) {
+    return { error: "Não há pendentes com e-mail esperando o pedido de fotos." };
+  }
+
+  let sentItems: Array<{ leadId: string; emailId: string | null }> = [];
+  try {
+    sentItems = await sendLeadFotosEmailBatch(
+      lote.map((item) => ({
+        id: item.id,
+        nome: item.nome_completo,
+        email: item.email,
+      })),
+    );
+  } catch (caught) {
+    console.error(caught);
+    return {
+      error:
+        caught instanceof Error
+          ? caught.message
+          : "Não foi possível enviar o lote agora.",
+    };
+  }
+
+  const marked = await markLeadsMetaEmailEnviado(
+    sentItems.map((item) => ({ id: item.leadId, emailId: item.emailId })),
+  );
+  if (marked.error && marked.error !== "sql-missing") {
+    return { error: marked.error };
+  }
+
+  revalidatePath("/admin");
+  return {
+    ok: true as const,
+    enviados: lote.length,
+    restantes: Math.max(0, fila.length - lote.length),
+  };
 }

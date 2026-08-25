@@ -2,17 +2,44 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { deleteLeadMeta, importMetaCsv } from "@/app/admin/actions";
+import { deleteLeadMeta, emailLeadMetaFotos, emailLeadsMetaPendentes, importMetaCsv } from "@/app/admin/actions";
 import { formatDateTime, instagramUrl, whatsappUrl } from "@/lib/inscricao";
-import { leadMetaConfirmado } from "@/lib/lead-meta-status";
+import { leadMetaConfirmado, leadTemEmail, leadEmailStatus, leadEmailEnviado, leadEmailEntregue, leadEmailLido, leadEmailClicou, leadEmailBounce } from "@/lib/lead-meta-status";
 import type { LeadMeta } from "@/lib/leads-meta";
 import { PhotoGallery } from "@/components/admin/PhotoGallery";
+import { CopyLink } from "@/components/CopyLink";
+import Link from "next/link";
 
-type StatusFiltro = "todas" | "pendente" | "confirmado";
+type StatusFiltro =
+  | "todas"
+  | "pendente"
+  | "confirmado"
+  | "enviado"
+  | "lido"
+  | "clicou"
+  | "bounce";
 
 function pedidoFotosWhatsapp(nome: string) {
   const primeiro = nome.trim().split(/\s+/)[0] || "";
-  return `Oi, ${primeiro}! Para completar sua inscrição no casting Agnes Pimentel + Mix Models, envie 5 fotos aqui: https://www.agnespimentel.com/fotos`;
+  return `Oi, ${primeiro}! Seu perfil chegou até a equipe da Mix Models com a Agnes Pimentel. Para seguir na seleção, envie 5 fotos aqui: https://www.agnespimentel.com/fotos`;
+}
+
+function emailBadge(lead: LeadMeta) {
+  const status = leadEmailStatus(lead);
+  if (!status) return null;
+  const styles: Record<
+    NonNullable<ReturnType<typeof leadEmailStatus>>,
+    { label: string; className: string }
+  > = {
+    enviado: { label: "E-mail enviado", className: "bg-cream text-ink" },
+    entregue: { label: "Entregue", className: "bg-ink/10 text-ink" },
+    lido: { label: "Lido", className: "bg-gold/90 text-ink" },
+    clicou: { label: "Clicou no link", className: "bg-lime text-ink" },
+    bounce: { label: "Não chegou", className: "bg-red-100 text-red-800" },
+    falhou: { label: "Falhou", className: "bg-red-100 text-red-800" },
+    reclamou: { label: "Marcou spam", className: "bg-red-100 text-red-800" },
+  };
+  return styles[status];
 }
 
 function extraLabel(key: string) {
@@ -39,9 +66,13 @@ function extraEntries(extras: Record<string, string> | null | undefined) {
 export function LeadsMetaBoard({
   leads,
   sqlMissing,
+  mailReady = false,
+  webhookReady = false,
 }: {
   leads: LeadMeta[];
   sqlMissing?: boolean;
+  mailReady?: boolean;
+  webhookReady?: boolean;
 }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -49,14 +80,25 @@ export function LeadsMetaBoard({
   const [error, setError] = useState("");
   const [pending, startTransition] = useTransition();
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [emailingId, setEmailingId] = useState<string | null>(null);
   const [filter, setFilter] = useState<StatusFiltro>("pendente");
 
   const counts = useMemo(() => {
     const confirmado = leads.filter(leadMetaConfirmado).length;
+    const filaEmail = leads.filter(
+      (item) =>
+        !leadMetaConfirmado(item) && leadTemEmail(item) && !item.email_fotos_em,
+    ).length;
     return {
       todas: leads.length,
       confirmado,
       pendente: leads.length - confirmado,
+      filaEmail,
+      enviado: leads.filter(leadEmailEnviado).length,
+      entregue: leads.filter(leadEmailEntregue).length,
+      lido: leads.filter(leadEmailLido).length,
+      clicou: leads.filter(leadEmailClicou).length,
+      bounce: leads.filter(leadEmailBounce).length,
     };
   }, [leads]);
 
@@ -65,8 +107,22 @@ export function LeadsMetaBoard({
     return leads
       .filter((item) => {
         const confirmado = leadMetaConfirmado(item);
+        const email = leadEmailStatus(item);
         if (filter === "pendente" && confirmado) return false;
         if (filter === "confirmado" && !confirmado) return false;
+        if (filter === "enviado" && !email) return false;
+        if (filter === "lido" && email !== "lido" && email !== "clicou") {
+          return false;
+        }
+        if (filter === "clicou" && email !== "clicou") return false;
+        if (
+          filter === "bounce" &&
+          email !== "bounce" &&
+          email !== "falhou" &&
+          email !== "reclamou"
+        ) {
+          return false;
+        }
         if (!needle) return true;
         return [
           item.nome_completo,
@@ -116,6 +172,40 @@ export function LeadsMetaBoard({
         setError(result.error);
         return;
       }
+      router.refresh();
+    });
+  }
+
+  function onEmailOne(id: string) {
+    setError("");
+    setMessage("");
+    setEmailingId(id);
+    startTransition(async () => {
+      const result = await emailLeadMetaFotos(id);
+      setEmailingId(null);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      setMessage(`E-mail enviado para ${result.to}.`);
+      router.refresh();
+    });
+  }
+
+  function onEmailPendentes() {
+    setError("");
+    setMessage("");
+    startTransition(async () => {
+      const result = await emailLeadsMetaPendentes();
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      setMessage(
+        `Enviamos ${result.enviados} e-mail${result.enviados === 1 ? "" : "s"}${
+          result.restantes ? `. Ainda faltam ${result.restantes} — clique de novo.` : "."
+        }`,
+      );
       router.refresh();
     });
   }
@@ -178,11 +268,67 @@ export function LeadsMetaBoard({
         ) : null}
       </section>
 
-      <div className="grid grid-cols-3 gap-3">
+      <section className="rounded-[28px] bg-white p-5 text-ink sm:p-8">
+        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-ink/40">
+          Resend
+        </p>
+        <h2 className="mt-1 font-display text-2xl font-semibold">
+          Pedir o book por e-mail
+        </h2>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-ink/60">
+          Convite da Mix Models para pendentes com e-mail, com o link de
+          https://www.agnespimentel.com/fotos. Até 80 por vez. O painel mostra
+          enviado, entregue, lido e clique quando o webhook do Resend estiver
+          ligado.
+        </p>
+        <button
+          type="button"
+          disabled={pending || !mailReady || counts.filaEmail === 0}
+          onClick={onEmailPendentes}
+          className="mt-5 rounded-full bg-green px-5 py-2.5 text-sm font-bold text-white hover:bg-green-mid disabled:opacity-70"
+        >
+          {pending
+            ? "Enviando…"
+            : `Enviar para ${counts.filaEmail} pendente${counts.filaEmail === 1 ? "" : "s"}`}
+        </button>
+        {!mailReady ? (
+          <p className="mt-3 text-sm text-ink/50">
+            Falta <code className="rounded bg-cream px-1.5 py-0.5">RESEND_API_KEY</code> no
+            ambiente (Vercel e .env.local).
+          </p>
+        ) : !webhookReady ? (
+          <p className="mt-3 text-sm text-ink/50">
+            Envio já funciona. Para aparecer lido e clique, crie o webhook no
+            Resend apontando para{" "}
+            <code className="rounded bg-cream px-1.5 py-0.5">
+              /api/resend/webhook
+            </code>{" "}
+            e coloque <code className="rounded bg-cream px-1.5 py-0.5">RESEND_WEBHOOK_SECRET</code>{" "}
+            no ambiente.
+          </p>
+        ) : null}
+        {message ? (
+          <p className="mt-4 rounded-2xl bg-lime/40 px-4 py-3 text-sm font-medium text-ink">
+            {message}
+          </p>
+        ) : null}
+        {error ? (
+          <p className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">
+            {error}
+          </p>
+        ) : null}
+      </section>
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
           { label: "Todos", value: counts.todas },
           { label: "Pendentes", value: counts.pendente },
           { label: "Confirmados", value: counts.confirmado },
+          { label: "E-mails", value: counts.enviado },
+          { label: "Entregues", value: counts.entregue },
+          { label: "Lidos", value: counts.lido },
+          { label: "Clicaram", value: counts.clicou },
+          { label: "Não chegou", value: counts.bounce },
         ].map((stat) => (
           <div
             key={stat.label}
@@ -205,6 +351,10 @@ export function LeadsMetaBoard({
               { id: "todas", label: "Todas" },
               { id: "pendente", label: "Pendentes" },
               { id: "confirmado", label: "Confirmados" },
+              { id: "enviado", label: "E-mail enviado" },
+              { id: "lido", label: "Lidos" },
+              { id: "clicou", label: "Clicaram" },
+              { id: "bounce", label: "Não chegou" },
             ] as const
           ).map((item) => {
             const active = filter === item.id;
@@ -246,6 +396,7 @@ export function LeadsMetaBoard({
           {filtered.map((item) => {
             const answers = extraEntries(item.extras);
             const confirmado = leadMetaConfirmado(item);
+            const mail = emailBadge(item);
             return (
               <article
                 key={item.id}
@@ -253,15 +404,24 @@ export function LeadsMetaBoard({
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <span
-                      className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${
-                        confirmado
-                          ? "bg-green text-white"
-                          : "bg-gold/90 text-ink"
-                      }`}
-                    >
-                      {confirmado ? "Confirmado" : "Pendente"}
-                    </span>
+                    <div className="flex flex-wrap gap-2">
+                      <span
+                        className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${
+                          confirmado
+                            ? "bg-green text-white"
+                            : "bg-gold/90 text-ink"
+                        }`}
+                      >
+                        {confirmado ? "Confirmado" : "Pendente"}
+                      </span>
+                      {mail ? (
+                        <span
+                          className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${mail.className}`}
+                        >
+                          {mail.label}
+                        </span>
+                      ) : null}
+                    </div>
                     <h3 className="mt-2 font-display text-xl font-semibold leading-snug">
                       {item.nome_completo}
                     </h3>
@@ -269,25 +429,62 @@ export function LeadsMetaBoard({
                       {formatDateTime(item.created_at)}
                       {item.plataforma ? ` · ${item.plataforma}` : ""}
                     </p>
+                    {item.email_fotos_em ? (
+                      <p className="mt-1 text-xs leading-5 text-ink/45">
+                        Enviado {formatDateTime(item.email_fotos_em)}
+                        {item.email_entregue_em
+                          ? ` · entregue ${formatDateTime(item.email_entregue_em)}`
+                          : ""}
+                        {item.email_lido_em
+                          ? ` · lido ${formatDateTime(item.email_lido_em)}`
+                          : ""}
+                        {item.email_clicou_em
+                          ? ` · clicou ${formatDateTime(item.email_clicou_em)}`
+                          : ""}
+                      </p>
+                    ) : null}
                   </div>
-                  {deletingId === item.id ? (
-                    <button
-                      type="button"
-                      disabled={pending}
-                      onClick={() => onDelete(item.id)}
-                      className="rounded-full bg-red-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-700 disabled:opacity-70"
-                    >
-                      Confirmar
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setDeletingId(item.id)}
-                      className="rounded-full bg-cream px-3 py-1.5 text-xs font-bold text-red-700 hover:bg-red-50"
-                    >
-                      Excluir
-                    </button>
-                  )}
+                  <div className="flex flex-wrap items-center gap-2">
+                    {item.inscricao_id ? (
+                      <>
+                        <Link
+                          href={`/admin/${item.inscricao_id}`}
+                          className="rounded-full bg-green px-3 py-1.5 text-xs font-bold text-white hover:bg-green-mid"
+                        >
+                          Avaliar
+                        </Link>
+                        <CopyLink path={`/acompanhar/${item.inscricao_id}`} compact />
+                      </>
+                    ) : null}
+                    {!confirmado && leadTemEmail(item) ? (
+                      <button
+                        type="button"
+                        disabled={pending || !mailReady}
+                        onClick={() => onEmailOne(item.id)}
+                        className="rounded-full bg-lime px-3 py-1.5 text-xs font-bold text-ink hover:bg-lime-deep disabled:opacity-70"
+                      >
+                        {emailingId === item.id ? "Enviando…" : "E-mail"}
+                      </button>
+                    ) : null}
+                    {deletingId === item.id ? (
+                      <button
+                        type="button"
+                        disabled={pending}
+                        onClick={() => onDelete(item.id)}
+                        className="rounded-full bg-red-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-red-700 disabled:opacity-70"
+                      >
+                        Confirmar
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setDeletingId(item.id)}
+                        className="rounded-full bg-cream px-3 py-1.5 text-xs font-bold text-red-700 hover:bg-red-50"
+                      >
+                        Excluir
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">

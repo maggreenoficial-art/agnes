@@ -30,7 +30,31 @@ function isAllowedImage(file: File) {
   return /\.(jpe?g|png|webp|heic|heif)$/i.test(file.name);
 }
 
-export function FotosForm({ nomeInicial = "" }: { nomeInicial?: string }) {
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+    value,
+  );
+}
+
+function rpcInscricaoId(data: unknown): string | null {
+  try {
+    const parsed =
+      typeof data === "string" ? (JSON.parse(data) as unknown) : data;
+    if (!parsed || typeof parsed !== "object") return null;
+    const id = (parsed as { inscricao_id?: unknown }).inscricao_id;
+    return typeof id === "string" && isUuid(id) ? id : null;
+  } catch {
+    return null;
+  }
+}
+
+export function FotosForm({
+  nomeInicial = "",
+  leadId = "",
+}: {
+  nomeInicial?: string;
+  leadId?: string;
+}) {
   const [nome, setNome] = useState(nomeInicial);
   const [telefone, setTelefone] = useState("");
   const [instagram, setInstagram] = useState("");
@@ -175,12 +199,22 @@ export function FotosForm({ nomeInicial = "" }: { nomeInicial?: string }) {
       }
 
       setProgress("Salvando suas fotos…");
-      const { error } = await supabase.rpc("enviar_fotos_lead", {
+      const payload: {
+        p_nome: string;
+        p_telefone: string;
+        p_instagram: string;
+        p_fotos: string[];
+        p_lead_id?: string;
+      } = {
         p_nome: nome.trim(),
         p_telefone: maskPhone(telefone),
         p_instagram: normalizeInstagram(instagram),
         p_fotos: fotoUrls,
-      });
+      };
+      if (isUuid(leadId)) {
+        payload.p_lead_id = leadId;
+      }
+      const { data, error } = await supabase.rpc("enviar_fotos_lead", payload);
 
       if (error) {
         const message = error.message.toLowerCase();
@@ -194,7 +228,12 @@ export function FotosForm({ nomeInicial = "" }: { nomeInicial?: string }) {
       }
 
       reportFunil({ etapa: "inscrita" });
-      window.location.assign("/obrigada?fotos=1");
+      const inscricaoId = rpcInscricaoId(data);
+      window.location.assign(
+        inscricaoId
+          ? `/acompanhar/${inscricaoId}?novo=1`
+          : "/obrigada?fotos=1",
+      );
     } catch (error) {
       console.error(error);
       setStatus("error");
@@ -240,8 +279,8 @@ export function FotosForm({ nomeInicial = "" }: { nomeInicial?: string }) {
             </h2>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-ink/60">
               Você já preencheu o formulário no Instagram. Aqui só precisamos do
-              seu nome, WhatsApp, Instagram e das fotos para a Mix Models
-              avaliar o perfil.
+              seu nome, WhatsApp, Instagram e das fotos. A equipe da Mix Models
+              avalia o perfil e você acompanha a aprovação neste mesmo cadastro.
             </p>
           </div>
 

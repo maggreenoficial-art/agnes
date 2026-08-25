@@ -8,7 +8,7 @@ export type Inscricao = {
   id: string;
   created_at: string;
   nome_completo: string;
-  data_nascimento: string;
+  data_nascimento: string | null;
   endereco: string;
   telefone: string;
   email: string;
@@ -68,7 +68,8 @@ function todayInSaoPaulo() {
   return { year, month, day };
 }
 
-export function idade(isoDate: string) {
+export function idade(isoDate: string | null | undefined) {
+  if (!isoDate) return null;
   const nascimento = new Date(`${isoDate}T00:00:00`);
   if (Number.isNaN(nascimento.getTime())) return null;
 
@@ -92,7 +93,8 @@ export function formatDateTime(value: string) {
   }).format(new Date(value));
 }
 
-export function formatDate(value: string) {
+export function formatDate(value: string | null | undefined) {
+  if (!value) return "Não informado";
   return new Intl.DateTimeFormat("pt-BR", {
     dateStyle: "long",
   }).format(new Date(`${value}T00:00:00`));

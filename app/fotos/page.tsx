@@ -12,9 +12,9 @@ export const metadata = {
 export default async function FotosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ nome?: string }>;
+  searchParams: Promise<{ nome?: string; lead?: string }>;
 }) {
-  const { nome } = await searchParams;
+  const { nome, lead } = await searchParams;
 
   return (
     <div className="min-h-full">
@@ -35,7 +35,7 @@ export default async function FotosPage({
           <p className="mb-4 text-xs font-bold uppercase tracking-[0.22em] text-lime">
             Processo seletivo
           </p>
-          <FotosForm nomeInicial={nome?.trim() ?? ""} />
+          <FotosForm nomeInicial={nome?.trim() ?? ""} leadId={lead?.trim() ?? ""} />
           <p className="mt-6 text-center text-sm text-white/55">
             Ainda não se inscreveu?{" "}
             <Link href="/#inscricao" className="font-semibold text-lime hover:underline">

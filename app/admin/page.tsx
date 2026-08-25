@@ -4,6 +4,7 @@ import { AdminTabs } from "@/components/admin/AdminTabs";
 import { LeadsMetaBoard } from "@/components/admin/LeadsMetaBoard";
 import { isAdmin } from "@/lib/admin-auth";
 import { listInscricoes } from "@/lib/admin-data";
+import { isResendConfigured, isResendWebhookConfigured } from "@/lib/export/mail-config";
 import { listLeadsMeta } from "@/lib/leads-meta";
 import { leadMetaConfirmado } from "@/lib/lead-meta-status";
 import { redirect } from "next/navigation";
@@ -47,7 +48,9 @@ export default async function AdminPage({
       ? []
       : leadsResult.data;
   const metaCount = metaLeads.length;
-  const metaConfirmados = metaLeads.filter(leadMetaConfirmado).length;
+  const metaConfirmadosFora = metaLeads.filter(
+    (item) => leadMetaConfirmado(item) && !item.inscricao_id,
+  ).length;
 
   return (
     <main className="min-h-[100svh] bg-[#f3efe4] px-5 py-8 sm:px-8">
@@ -64,7 +67,7 @@ export default async function AdminPage({
           aba={tab}
           perfis={data.length}
           meta={metaCount}
-          metaConfirmados={metaConfirmados}
+          metaConfirmados={metaConfirmadosFora}
         />
 
         {tab === "meta" ? (
@@ -76,6 +79,8 @@ export default async function AdminPage({
             <LeadsMetaBoard
               leads={leadsResult.data}
               sqlMissing={leadsResult.error === "sql-missing"}
+              mailReady={isResendConfigured()}
+              webhookReady={isResendWebhookConfigured()}
             />
           )
         ) : error === "sql-missing" ? (
