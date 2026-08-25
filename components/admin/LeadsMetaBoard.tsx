@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { deleteLeadMeta, importMetaCsv } from "@/app/admin/actions";
 import { formatDateTime, whatsappUrl } from "@/lib/inscricao";
 import type { LeadMeta } from "@/lib/leads-meta";
+import { PhotoGallery } from "@/components/admin/PhotoGallery";
 
 function extraLabel(key: string) {
   const normalized = key
@@ -276,6 +277,16 @@ export function LeadsMetaBoard({
                     </div>
                   ) : null}
                 </dl>
+                <div className="mt-5">
+                  <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.14em] text-ink/35">
+                    Fotos
+                  </p>
+                  {(item.fotos ?? []).length > 0 ? (
+                    <PhotoGallery fotos={item.fotos} nome={item.nome_completo} />
+                  ) : (
+                    <p className="text-sm text-ink/40">Ainda sem fotos.</p>
+                  )}
+                </div>
               </article>
             );
           })}

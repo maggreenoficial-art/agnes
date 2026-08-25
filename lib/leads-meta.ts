@@ -20,6 +20,7 @@ export type LeadMeta = {
   formulario: string | null;
   plataforma: string | null;
   extras: Record<string, string>;
+  fotos: string[];
 };
 
 function mapLead(row: LeadMeta): LeadMeta {
@@ -29,6 +30,7 @@ function mapLead(row: LeadMeta): LeadMeta {
       row.extras && typeof row.extras === "object" && !Array.isArray(row.extras)
         ? row.extras
         : {},
+    fotos: Array.isArray(row.fotos) ? row.fotos : [],
   };
 }
 

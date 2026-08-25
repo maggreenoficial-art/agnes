@@ -1,6 +1,6 @@
 import Image from "next/image";
 import { InstitutoSeal, LogoMixModels, OfficialMarks } from "@/components/Brand";
-import { InscricaoForm } from "@/components/InscricaoForm";
+import { InscricaoTabs } from "@/components/InscricaoTabs";
 import {
   ENDERECO,
   MAPS_DIRECTIONS,
@@ -104,7 +104,7 @@ export default function Home() {
         />
         <div className="absolute inset-0 bg-gradient-to-b from-green-deep via-green-deep/85 to-green-deep" />
         <div className="relative mx-auto max-w-3xl">
-          <InscricaoForm />
+          <InscricaoTabs />
         </div>
       </section>
 
