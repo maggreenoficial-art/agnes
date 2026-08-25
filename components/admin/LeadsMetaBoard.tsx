@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { deleteLeadMeta, importMetaCsv } from "@/app/admin/actions";
-import { formatDateTime, instagramUrl, whatsappUrl } from "@/lib/inscricao";
+import { formatDateTime, whatsappUrl } from "@/lib/inscricao";
 import type { LeadMeta } from "@/lib/leads-meta";
 
 function extraLabel(key: string) {
@@ -22,7 +22,9 @@ function extraLabel(key: string) {
 
 function extraEntries(extras: Record<string, string> | null | undefined) {
   if (!extras || typeof extras !== "object") return [];
-  return Object.entries(extras).filter(([, value]) => value.trim());
+  return Object.entries(extras).filter(
+    ([key, value]) => value.trim() && !key.includes("instagram"),
+  );
 }
 
 export function LeadsMetaBoard({
@@ -49,7 +51,6 @@ export function LeadsMetaBoard({
         item.telefone,
         item.cidade,
         item.endereco,
-        item.instagram,
         item.campanha,
         ...Object.values(item.extras ?? {}),
       ]
@@ -119,12 +120,6 @@ export function LeadsMetaBoard({
         <h2 className="mt-1 font-display text-2xl font-semibold">
           Carregar CSV da Meta
         </h2>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-ink/60">
-          No Gerenciador de Anúncios: Formulários instantâneos → leads do
-          formulário → Baixar. O arquivo entra aqui. Lead repetido (mesmo ID da
-          Meta) só atualiza, não duplica. Esses cadastros não misturam com os
-          perfis do site.
-        </p>
         <form action={onUpload} className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
           <input
             type="file"
@@ -216,7 +211,7 @@ export function LeadsMetaBoard({
                 <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
                   <div>
                     <dt className="text-[11px] font-bold uppercase tracking-[0.14em] text-ink/35">
-                      Telefone
+                      Whatsapp
                     </dt>
                     <dd className="mt-1">
                       {item.telefone ? (
@@ -259,23 +254,6 @@ export function LeadsMetaBoard({
                         "—"}
                     </dd>
                   </div>
-                  {item.instagram ? (
-                    <div className="sm:col-span-2">
-                      <dt className="text-[11px] font-bold uppercase tracking-[0.14em] text-ink/35">
-                        Instagram
-                      </dt>
-                      <dd className="mt-1">
-                        <a
-                          href={instagramUrl(item.instagram)}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="font-semibold text-green hover:underline"
-                        >
-                          {item.instagram}
-                        </a>
-                      </dd>
-                    </div>
-                  ) : null}
                   {answers.map(([key, value]) => (
                     <div key={key} className="sm:col-span-2">
                       <dt className="text-[11px] font-bold uppercase tracking-[0.14em] text-ink/35">
