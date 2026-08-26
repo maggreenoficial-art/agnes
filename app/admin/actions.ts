@@ -1,5 +1,7 @@
 "use server";
 
+export const maxDuration = 300;
+
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import {
@@ -198,7 +200,18 @@ export async function deleteLeadMeta(id: string) {
   return { ok: true };
 }
 
-const WHATSAPP_BATCH = 40;
+const WHATSAPP_BATCH = 15;
+const PAUSA_ENTRE_ENVIOS_MS = { min: 800, max: 1800 };
+const PAUSA_A_CADA = 5;
+const PAUSA_EXTRA_MS = { min: 8000, max: 15000 };
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function randomMs(range: { min: number; max: number }) {
+  return range.min + Math.floor(Math.random() * (range.max - range.min + 1));
+}
 
 export async function whatsappLeadMetaFotos(id: string) {
   if (!(await isAdmin())) {
@@ -272,7 +285,13 @@ export async function whatsappLeadsMetaPendentes() {
 
   const sentItems: Array<{ id: string; emailId: string | null }> = [];
   const falhas: string[] = [];
-  for (const lead of lote) {
+  for (const [index, lead] of lote.entries()) {
+    if (index > 0) {
+      await sleep(randomMs(PAUSA_ENTRE_ENVIOS_MS));
+      if (index % PAUSA_A_CADA === 0) {
+        await sleep(randomMs(PAUSA_EXTRA_MS));
+      }
+    }
     try {
       const sent = await sendZapiText({
         phone: lead.telefone,

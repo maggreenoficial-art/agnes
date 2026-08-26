@@ -42,6 +42,10 @@ function zapiUrl(path: string) {
   return `https://api.z-api.io/instances/${instance}/token/${token}/${path.replace(/^\//, "")}`;
 }
 
+function randomInt(min: number, max: number) {
+  return min + Math.floor(Math.random() * (max - min + 1));
+}
+
 export async function sendZapiText(options: {
   phone: string;
   message: string;
@@ -57,8 +61,8 @@ export async function sendZapiText(options: {
     body: JSON.stringify({
       phone,
       message: options.message,
-      delayTyping: 3,
-      delayMessage: 2,
+      delayTyping: randomInt(4, 8),
+      delayMessage: randomInt(12, 15),
     }),
   });
   const details = await response.text();
