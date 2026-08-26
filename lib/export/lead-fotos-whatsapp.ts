@@ -14,14 +14,10 @@ export function leadFotosWhatsappMessage(nomeCompleto: string, leadId?: string) 
   const link = leadFotosLink(leadId);
   const oi = primeiro || "Oi";
   return [
-    `Oi, ${oi}! O seu perfil chegou até a equipe da *Mix Models* com a *Agnes Pimentel* e o Instituto Imperatriz.`,
+    `Oi, ${oi}! A *Mix Models* escolheu o seu perfil para a seleção com a Agnes Pimentel.`,
     "",
-    "Estamos montando o grupo da seleção presencial e queremos te avaliar com o cuidado que o seu perfil merece. O próximo passo é o book: cinco fotos só suas.",
+    `Envie 5 fotos aqui: ${link}`,
     "",
-    `Envie aqui: ${link}`,
-    "",
-    "Use o mesmo WhatsApp do anúncio, o Instagram com o perfil aberto e fotos com fundo liso, camiseta preta ou branca e calça jeans ou preta.",
-    "",
-    "Mix Models Agency · Instituto Imperatriz Leopoldinense",
+    "Mesmo WhatsApp do anúncio, Instagram aberto, fundo liso, camiseta preta ou branca e calça jeans ou preta.",
   ].join("\n");
 }
