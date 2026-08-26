@@ -4,9 +4,14 @@ import { InstitutoSeal, LogoMixModels } from "@/components/Brand";
 import { FotosForm } from "@/components/FotosForm";
 
 export const metadata = {
-  title: "Enviar fotos | Agnes Pimentel + Mix Models",
-  description:
-    "Quem já preencheu o formulário no Instagram envia aqui o nome, e-mail, WhatsApp, Instagram e as 5 fotos do casting.",
+  title: "Enviar as 5 fotos | Mix Models",
+  description: "Conclua a inscrição da Mix Models enviando as 5 fotos do casting.",
+  openGraph: {
+    title: "Enviar as 5 fotos",
+    description: "Conclua a inscrição da Mix Models.",
+    url: "https://www.agnespimentel.com/fotos",
+    images: ["/img-base.png"],
+  },
 };
 
 export default async function FotosPage({

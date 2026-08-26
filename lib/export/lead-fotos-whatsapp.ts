@@ -16,8 +16,6 @@ export function leadFotosWhatsappMessage(nomeCompleto: string, leadId?: string) 
   return [
     `Oi, ${oi}! A *Mix Models* escolheu o seu perfil para a seleção com a Agnes Pimentel.`,
     "",
-    `Envie 5 fotos aqui: ${link}`,
-    "",
-    "Mesmo WhatsApp do anúncio, Instagram aberto, fundo liso, camiseta preta ou branca e calça jeans ou preta.",
+    `Para concluir a inscrição, envie as 5 fotos: ${link}`,
   ].join("\n");
 }
