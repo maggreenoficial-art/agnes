@@ -1,7 +1,5 @@
 "use server";
 
-export const maxDuration = 300;
-
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import {
@@ -201,9 +199,7 @@ export async function deleteLeadMeta(id: string) {
 }
 
 const WHATSAPP_BATCH = 15;
-const PAUSA_ENTRE_ENVIOS_MS = { min: 800, max: 1800 };
-const PAUSA_A_CADA = 5;
-const PAUSA_EXTRA_MS = { min: 8000, max: 15000 };
+const PAUSA_ENTRE_ENVIOS_MS = { min: 400, max: 900 };
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -288,9 +284,6 @@ export async function whatsappLeadsMetaPendentes() {
   for (const [index, lead] of lote.entries()) {
     if (index > 0) {
       await sleep(randomMs(PAUSA_ENTRE_ENVIOS_MS));
-      if (index % PAUSA_A_CADA === 0) {
-        await sleep(randomMs(PAUSA_EXTRA_MS));
-      }
     }
     try {
       const sent = await sendZapiText({

@@ -9,8 +9,6 @@ import { listLeadsMeta } from "@/lib/leads-meta";
 import { leadMetaConfirmado } from "@/lib/lead-meta-status";
 import { redirect } from "next/navigation";
 
-export const maxDuration = 300;
-
 function SetupCard({
   title,
   children,
