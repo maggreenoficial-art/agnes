@@ -51,30 +51,15 @@ export async function sendZapiText(options: {
     throw new Error("Telefone inválido para o WhatsApp.");
   }
 
-  const linkMatch = options.message.match(/https:\/\/[^\s]+/);
-  const linkUrl = linkMatch?.[0];
-  const payload = linkUrl
-    ? {
-        phone,
-        message: options.message,
-        image: "https://www.agnespimentel.com/img-base.png",
-        linkUrl,
-        title: "Enviar as 5 fotos",
-        linkDescription: "Conclua a inscrição da Mix Models",
-        delayTyping: 3,
-        delayMessage: 2,
-      }
-    : {
-        phone,
-        message: options.message,
-        delayTyping: 3,
-        delayMessage: 2,
-      };
-
-  const response = await fetch(zapiUrl(linkUrl ? "send-link" : "send-text"), {
+  const response = await fetch(zapiUrl("send-text"), {
     method: "POST",
     headers: zapiHeaders(),
-    body: JSON.stringify(payload),
+    body: JSON.stringify({
+      phone,
+      message: options.message,
+      delayTyping: 3,
+      delayMessage: 2,
+    }),
   });
   const details = await response.text();
   if (!response.ok) {
