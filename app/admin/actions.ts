@@ -10,13 +10,14 @@ import {
 } from "@/lib/admin-auth";
 import { getInscricao, removeInscricao, setInscricaoStatus } from "@/lib/admin-data";
 import { importLeadsMeta, listLeadsMeta, markLeadsMetaEmailEnviado, removeLeadMeta } from "@/lib/leads-meta";
-import { leadMetaConfirmado, leadTemEmail } from "@/lib/lead-meta-status";
+import { leadMetaConfirmado, leadTemWhatsapp, leadWhatsappEnviado } from "@/lib/lead-meta-status";
 import { parseMetaLeadsCsv } from "@/lib/meta-csv";
 import { sendProfileEmail } from "@/lib/export/email";
-import { sendLeadFotosEmail, sendLeadFotosEmailBatch } from "@/lib/export/lead-fotos-email";
+import { leadFotosWhatsappMessage } from "@/lib/export/lead-fotos-whatsapp";
 import { buildProfileExcel } from "@/lib/export/excel";
 import { fileBaseName } from "@/lib/export/fields";
-import { leadMailConfigError, mailConfigError } from "@/lib/export/mail-config";
+import { mailConfigError } from "@/lib/export/mail-config";
+import { sendZapiText, zapiConfigError } from "@/lib/z-api";
 import { buildProfilePdf } from "@/lib/export/pdf";
 import {
   type InscricaoStatus,
@@ -197,14 +198,14 @@ export async function deleteLeadMeta(id: string) {
   return { ok: true };
 }
 
-const EMAIL_BATCH = 80;
+const WHATSAPP_BATCH = 40;
 
-export async function emailLeadMetaFotos(id: string) {
+export async function whatsappLeadMetaFotos(id: string) {
   if (!(await isAdmin())) {
     return { error: "Sessão expirada. Entre de novo." };
   }
 
-  const configError = leadMailConfigError();
+  const configError = zapiConfigError();
   if (configError) return { error: configError };
 
   const { data, error } = await listLeadsMeta();
@@ -215,45 +216,44 @@ export async function emailLeadMetaFotos(id: string) {
   if (leadMetaConfirmado(lead)) {
     return { error: "Esse cadastro já está confirmado com fotos." };
   }
-  if (!leadTemEmail(lead)) {
-    return { error: "Esse lead não tem e-mail." };
+  if (!leadTemWhatsapp(lead)) {
+    return { error: "Esse lead não tem WhatsApp." };
   }
 
-  let emailId: string | null = null;
+  let messageId: string | null = null;
   try {
-    const sent = await sendLeadFotosEmail({
-      nome: lead.nome_completo,
-      email: lead.email,
-      leadId: lead.id,
+    const sent = await sendZapiText({
+      phone: lead.telefone,
+      message: leadFotosWhatsappMessage(lead.nome_completo, lead.id),
     });
-    emailId = sent.id;
+    messageId = sent.id ? `wa:${sent.id}` : "wa:";
   } catch (caught) {
     console.error(caught);
     return {
       error:
         caught instanceof Error
           ? caught.message
-          : "Não foi possível enviar o e-mail agora.",
+          : "Não foi possível enviar o WhatsApp agora.",
     };
   }
 
   const marked = await markLeadsMetaEmailEnviado([
-    { id: lead.id, emailId },
+    { id: lead.id, emailId: messageId },
   ]);
   if (marked.error && marked.error !== "sql-missing") {
     return { error: marked.error };
   }
 
   revalidatePath("/admin");
-  return { ok: true as const, to: lead.email };
+  return { ok: true as const, to: lead.telefone };
 }
 
-export async function emailLeadsMetaPendentes() {
+export async function whatsappLeadsMetaPendentes() {
   if (!(await isAdmin())) {
     return { error: "Sessão expirada. Entre de novo." };
   }
 
-  const configError = leadMailConfigError();
+  const configError = zapiConfigError();
   if (configError) return { error: configError };
 
   const { data, error } = await listLeadsMeta();
@@ -261,43 +261,50 @@ export async function emailLeadsMetaPendentes() {
 
   const fila = data.filter(
     (item) =>
-      !leadMetaConfirmado(item) && leadTemEmail(item) && !item.email_fotos_em,
+      !leadMetaConfirmado(item) &&
+      leadTemWhatsapp(item) &&
+      !leadWhatsappEnviado(item),
   );
-  const lote = fila.slice(0, EMAIL_BATCH);
+  const lote = fila.slice(0, WHATSAPP_BATCH);
   if (lote.length === 0) {
-    return { error: "Não há pendentes com e-mail esperando o pedido de fotos." };
+    return { error: "Não há pendentes com WhatsApp esperando o pedido de fotos." };
   }
 
-  let sentItems: Array<{ leadId: string; emailId: string | null }> = [];
-  try {
-    sentItems = await sendLeadFotosEmailBatch(
-      lote.map((item) => ({
-        id: item.id,
-        nome: item.nome_completo,
-        email: item.email,
-      })),
-    );
-  } catch (caught) {
-    console.error(caught);
+  const sentItems: Array<{ id: string; emailId: string | null }> = [];
+  const falhas: string[] = [];
+  for (const lead of lote) {
+    try {
+      const sent = await sendZapiText({
+        phone: lead.telefone,
+        message: leadFotosWhatsappMessage(lead.nome_completo, lead.id),
+      });
+      sentItems.push({ id: lead.id, emailId: sent.id ? `wa:${sent.id}` : "wa:" });
+    } catch (caught) {
+      console.error(caught);
+      falhas.push(lead.nome_completo);
+    }
+  }
+
+  if (sentItems.length > 0) {
+    const marked = await markLeadsMetaEmailEnviado(sentItems);
+    if (marked.error && marked.error !== "sql-missing") {
+      return { error: marked.error };
+    }
+  }
+
+  if (sentItems.length === 0) {
     return {
-      error:
-        caught instanceof Error
-          ? caught.message
-          : "Não foi possível enviar o lote agora.",
+      error: falhas.length
+        ? `Nenhuma mensagem saiu. Confira a instância do Z-API. Falhou: ${falhas.slice(0, 3).join(", ")}.`
+        : "Não foi possível enviar o lote agora.",
     };
-  }
-
-  const marked = await markLeadsMetaEmailEnviado(
-    sentItems.map((item) => ({ id: item.leadId, emailId: item.emailId })),
-  );
-  if (marked.error && marked.error !== "sql-missing") {
-    return { error: marked.error };
   }
 
   revalidatePath("/admin");
   return {
     ok: true as const,
-    enviados: lote.length,
+    enviados: sentItems.length,
     restantes: Math.max(0, fila.length - lote.length),
+    falhas: falhas.length,
   };
 }

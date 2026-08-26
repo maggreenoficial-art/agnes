@@ -2,12 +2,13 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { deleteLeadMeta, emailLeadMetaFotos, emailLeadsMetaPendentes, importMetaCsv } from "@/app/admin/actions";
+import { deleteLeadMeta, whatsappLeadMetaFotos, whatsappLeadsMetaPendentes, importMetaCsv } from "@/app/admin/actions";
 import { formatDateTime, instagramUrl, whatsappUrl } from "@/lib/inscricao";
-import { leadMetaConfirmado, leadTemEmail, leadEmailStatus, leadEmailEnviado, leadEmailEntregue, leadEmailLido, leadEmailClicou, leadEmailBounce } from "@/lib/lead-meta-status";
+import { leadMetaConfirmado, leadTemWhatsapp, leadWhatsappEnviado, leadEmailStatus, leadEmailEnviado, leadEmailEntregue, leadEmailLido, leadEmailClicou, leadEmailBounce } from "@/lib/lead-meta-status";
 import type { LeadMeta } from "@/lib/leads-meta";
 import { PhotoGallery } from "@/components/admin/PhotoGallery";
 import { CopyLink } from "@/components/CopyLink";
+import { leadFotosWhatsappMessage } from "@/lib/export/lead-fotos-whatsapp";
 import Link from "next/link";
 
 type StatusFiltro =
@@ -19,11 +20,6 @@ type StatusFiltro =
   | "clicou"
   | "bounce";
 
-function pedidoFotosWhatsapp(nome: string) {
-  const primeiro = nome.trim().split(/\s+/)[0] || "";
-  return `Oi, ${primeiro}! Seu perfil chegou até a equipe da Mix Models com a Agnes Pimentel. Para seguir na seleção, envie 5 fotos aqui: https://www.agnespimentel.com/fotos`;
-}
-
 function emailBadge(lead: LeadMeta) {
   const status = leadEmailStatus(lead);
   if (!status) return null;
@@ -31,7 +27,7 @@ function emailBadge(lead: LeadMeta) {
     NonNullable<ReturnType<typeof leadEmailStatus>>,
     { label: string; className: string }
   > = {
-    enviado: { label: "E-mail enviado", className: "bg-cream text-ink" },
+    enviado: { label: "Convite enviado", className: "bg-cream text-ink" },
     entregue: { label: "Entregue", className: "bg-ink/10 text-ink" },
     lido: { label: "Lido", className: "bg-gold/90 text-ink" },
     clicou: { label: "Clicou no link", className: "bg-lime text-ink" },
@@ -66,13 +62,11 @@ function extraEntries(extras: Record<string, string> | null | undefined) {
 export function LeadsMetaBoard({
   leads,
   sqlMissing,
-  mailReady = false,
-  webhookReady = false,
+  zapiReady = false,
 }: {
   leads: LeadMeta[];
   sqlMissing?: boolean;
-  mailReady?: boolean;
-  webhookReady?: boolean;
+  zapiReady?: boolean;
 }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -80,20 +74,22 @@ export function LeadsMetaBoard({
   const [error, setError] = useState("");
   const [pending, startTransition] = useTransition();
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [emailingId, setEmailingId] = useState<string | null>(null);
+  const [whatsappingId, setWhatsappingId] = useState<string | null>(null);
   const [filter, setFilter] = useState<StatusFiltro>("pendente");
 
   const counts = useMemo(() => {
     const confirmado = leads.filter(leadMetaConfirmado).length;
-    const filaEmail = leads.filter(
+    const filaWhatsapp = leads.filter(
       (item) =>
-        !leadMetaConfirmado(item) && leadTemEmail(item) && !item.email_fotos_em,
+        !leadMetaConfirmado(item) &&
+        leadTemWhatsapp(item) &&
+        !leadWhatsappEnviado(item),
     ).length;
     return {
       todas: leads.length,
       confirmado,
       pendente: leads.length - confirmado,
-      filaEmail,
+      filaWhatsapp,
       enviado: leads.filter(leadEmailEnviado).length,
       entregue: leads.filter(leadEmailEntregue).length,
       lido: leads.filter(leadEmailLido).length,
@@ -176,33 +172,35 @@ export function LeadsMetaBoard({
     });
   }
 
-  function onEmailOne(id: string) {
+  function onWhatsappOne(id: string) {
     setError("");
     setMessage("");
-    setEmailingId(id);
+    setWhatsappingId(id);
     startTransition(async () => {
-      const result = await emailLeadMetaFotos(id);
-      setEmailingId(null);
+      const result = await whatsappLeadMetaFotos(id);
+      setWhatsappingId(null);
       if (result.error) {
         setError(result.error);
         return;
       }
-      setMessage(`E-mail enviado para ${result.to}.`);
+      setMessage(`WhatsApp enviado para ${result.to}.`);
       router.refresh();
     });
   }
 
-  function onEmailPendentes() {
+  function onWhatsappPendentes() {
     setError("");
     setMessage("");
     startTransition(async () => {
-      const result = await emailLeadsMetaPendentes();
+      const result = await whatsappLeadsMetaPendentes();
       if (result.error) {
         setError(result.error);
         return;
       }
       setMessage(
-        `Enviamos ${result.enviados} e-mail${result.enviados === 1 ? "" : "s"}${
+        `Enviamos ${result.enviados} WhatsApp${result.enviados === 1 ? "" : "s"}${
+          result.falhas ? ` (${result.falhas} não saíram)` : ""
+        }${
           result.restantes ? `. Ainda faltam ${result.restantes} — clique de novo.` : "."
         }`,
       );
@@ -270,41 +268,30 @@ export function LeadsMetaBoard({
 
       <section className="rounded-[28px] bg-white p-5 text-ink sm:p-8">
         <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-ink/40">
-          Resend
+          WhatsApp
         </p>
         <h2 className="mt-1 font-display text-2xl font-semibold">
-          Pedir o book por e-mail
+          Pedir o book no WhatsApp
         </h2>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-ink/60">
-          Convite da Mix Models para pendentes com e-mail, com o link de
-          https://www.agnespimentel.com/fotos. Até 80 por vez. O painel mostra
-          enviado, entregue, lido e clique quando o webhook do Resend estiver
-          ligado.
+          Convite da Mix Models para pendentes, no mesmo número do anúncio, com
+          o link de https://www.agnespimentel.com/fotos. Até 40 por vez, com
+          pausa entre as mensagens.
         </p>
         <button
           type="button"
-          disabled={pending || !mailReady || counts.filaEmail === 0}
-          onClick={onEmailPendentes}
+          disabled={pending || !zapiReady || counts.filaWhatsapp === 0}
+          onClick={onWhatsappPendentes}
           className="mt-5 rounded-full bg-green px-5 py-2.5 text-sm font-bold text-white hover:bg-green-mid disabled:opacity-70"
         >
           {pending
             ? "Enviando…"
-            : `Enviar para ${counts.filaEmail} pendente${counts.filaEmail === 1 ? "" : "s"}`}
+            : `Enviar para ${counts.filaWhatsapp} pendente${counts.filaWhatsapp === 1 ? "" : "s"}`}
         </button>
-        {!mailReady ? (
+        {!zapiReady ? (
           <p className="mt-3 text-sm text-ink/50">
-            Falta <code className="rounded bg-cream px-1.5 py-0.5">RESEND_API_KEY</code> no
-            ambiente (Vercel e .env.local).
-          </p>
-        ) : !webhookReady ? (
-          <p className="mt-3 text-sm text-ink/50">
-            Envio já funciona. Para aparecer lido e clique, crie o webhook no
-            Resend apontando para{" "}
-            <code className="rounded bg-cream px-1.5 py-0.5">
-              /api/resend/webhook
-            </code>{" "}
-            e coloque <code className="rounded bg-cream px-1.5 py-0.5">RESEND_WEBHOOK_SECRET</code>{" "}
-            no ambiente.
+            Falta o <code className="rounded bg-cream px-1.5 py-0.5">ZAPI_CLIENT_TOKEN</code>{" "}
+            (painel Z-API → Segurança), além de instância e token no ambiente.
           </p>
         ) : null}
         {message ? (
@@ -324,7 +311,7 @@ export function LeadsMetaBoard({
           { label: "Todos", value: counts.todas },
           { label: "Pendentes", value: counts.pendente },
           { label: "Confirmados", value: counts.confirmado },
-          { label: "E-mails", value: counts.enviado },
+          { label: "WhatsApp", value: counts.enviado },
           { label: "Entregues", value: counts.entregue },
           { label: "Lidos", value: counts.lido },
           { label: "Clicaram", value: counts.clicou },
@@ -351,7 +338,7 @@ export function LeadsMetaBoard({
               { id: "todas", label: "Todas" },
               { id: "pendente", label: "Pendentes" },
               { id: "confirmado", label: "Confirmados" },
-              { id: "enviado", label: "E-mail enviado" },
+              { id: "enviado", label: "Convite enviado" },
               { id: "lido", label: "Lidos" },
               { id: "clicou", label: "Clicaram" },
               { id: "bounce", label: "Não chegou" },
@@ -456,14 +443,14 @@ export function LeadsMetaBoard({
                         <CopyLink path={`/acompanhar/${item.inscricao_id}`} compact />
                       </>
                     ) : null}
-                    {!confirmado && leadTemEmail(item) ? (
+                    {!confirmado && leadTemWhatsapp(item) ? (
                       <button
                         type="button"
-                        disabled={pending || !mailReady}
-                        onClick={() => onEmailOne(item.id)}
+                        disabled={pending || !zapiReady}
+                        onClick={() => onWhatsappOne(item.id)}
                         className="rounded-full bg-lime px-3 py-1.5 text-xs font-bold text-ink hover:bg-lime-deep disabled:opacity-70"
                       >
-                        {emailingId === item.id ? "Enviando…" : "E-mail"}
+                        {whatsappingId === item.id ? "Enviando…" : "WhatsApp"}
                       </button>
                     ) : null}
                     {deletingId === item.id ? (
@@ -499,7 +486,7 @@ export function LeadsMetaBoard({
                             item.telefone,
                             confirmado
                               ? undefined
-                              : pedidoFotosWhatsapp(item.nome_completo),
+                              : leadFotosWhatsappMessage(item.nome_completo, item.id),
                           )}
                           target="_blank"
                           rel="noreferrer"

@@ -4,7 +4,7 @@ import { AdminTabs } from "@/components/admin/AdminTabs";
 import { LeadsMetaBoard } from "@/components/admin/LeadsMetaBoard";
 import { isAdmin } from "@/lib/admin-auth";
 import { listInscricoes } from "@/lib/admin-data";
-import { isResendConfigured, isResendWebhookConfigured } from "@/lib/export/mail-config";
+import { isZapiConfigured } from "@/lib/z-api";
 import { listLeadsMeta } from "@/lib/leads-meta";
 import { leadMetaConfirmado } from "@/lib/lead-meta-status";
 import { redirect } from "next/navigation";
@@ -79,8 +79,7 @@ export default async function AdminPage({
             <LeadsMetaBoard
               leads={leadsResult.data}
               sqlMissing={leadsResult.error === "sql-missing"}
-              mailReady={isResendConfigured()}
-              webhookReady={isResendWebhookConfigured()}
+              zapiReady={isZapiConfigured()}
             />
           )
         ) : error === "sql-missing" ? (
