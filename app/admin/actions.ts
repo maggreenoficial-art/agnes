@@ -198,7 +198,7 @@ export async function deleteLeadMeta(id: string) {
   return { ok: true };
 }
 
-const WHATSAPP_BATCH = 15;
+const WHATSAPP_BATCH = 40;
 const PAUSA_ENTRE_ENVIOS_MS = { min: 400, max: 900 };
 
 function sleep(ms: number) {

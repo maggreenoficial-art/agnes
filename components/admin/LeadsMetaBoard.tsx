@@ -275,9 +275,9 @@ export function LeadsMetaBoard({
         </h2>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-ink/60">
           Convite da Mix Models para pendentes, no mesmo número do anúncio, com
-          o link de https://www.agnespimentel.com/fotos. Até 15 por vez. O
-          WhatsApp espera 12 a 15 segundos entre uma mensagem e outra, com
-          “digitando…” no meio, para não parecer disparo em massa.
+          o link de https://www.agnespimentel.com/fotos. Até 40 por vez. Elas
+          não saem juntas: o WhatsApp espera 12 a 15 segundos entre uma e outra,
+          com “digitando…” no meio.
         </p>
         <button
           type="button"
