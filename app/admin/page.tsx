@@ -7,6 +7,7 @@ import { listInscricoes } from "@/lib/admin-data";
 import { isZapiConfigured } from "@/lib/z-api";
 import { listLeadsMeta } from "@/lib/leads-meta";
 import { leadMetaConfirmado } from "@/lib/lead-meta-status";
+import { buildEngajadosAudience } from "@/lib/export/meta-audience";
 import { redirect } from "next/navigation";
 
 function SetupCard({
@@ -51,6 +52,7 @@ export default async function AdminPage({
   const metaConfirmadosFora = metaLeads.filter(
     (item) => leadMetaConfirmado(item) && !item.inscricao_id,
   ).length;
+  const engajadosCount = buildEngajadosAudience(data, metaLeads).length;
 
   return (
     <main className="min-h-[100svh] bg-[#f3efe4] px-5 py-8 sm:px-8">
@@ -60,6 +62,7 @@ export default async function AdminPage({
             total={tab === "meta" ? metaCount : data.length}
             title={tab === "meta" ? "Leads Meta" : "Perfis recebidos"}
             showExcel={tab === "perfis"}
+            engajadosCount={engajadosCount}
           />
         </div>
 

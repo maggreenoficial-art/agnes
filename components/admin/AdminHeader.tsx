@@ -7,10 +7,12 @@ export function AdminHeader({
   total,
   title = "Perfis recebidos",
   showExcel = true,
+  engajadosCount,
 }: {
   total: number;
   title?: string;
   showExcel?: boolean;
+  engajadosCount?: number;
 }) {
   return (
     <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -31,6 +33,18 @@ export function AdminHeader({
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-2">
+        {typeof engajadosCount === "number" ? (
+          <>
+            {/* File download, not a client navigation */}
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+            <a
+              href="/admin/export/engajados"
+              className="rounded-full bg-lime px-4 py-2 text-sm font-bold text-ink hover:bg-lime-deep"
+            >
+              CSV Meta · {engajadosCount} engajados
+            </a>
+          </>
+        ) : null}
         {showExcel ? (
           <>
             {/* File download, not a client navigation */}
