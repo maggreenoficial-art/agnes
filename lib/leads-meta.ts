@@ -28,6 +28,9 @@ export type LeadMeta = {
   email_lido_em: string | null;
   email_clicou_em: string | null;
   inscricao_id: string | null;
+  whatsapp_opt_out_em: string | null;
+  whatsapp_ultima_resposta: string | null;
+  whatsapp_ultima_resposta_em: string | null;
 };
 
 function mapLead(row: LeadMeta): LeadMeta {
@@ -45,6 +48,9 @@ function mapLead(row: LeadMeta): LeadMeta {
     email_lido_em: row.email_lido_em ?? null,
     email_clicou_em: row.email_clicou_em ?? null,
     inscricao_id: row.inscricao_id ?? null,
+    whatsapp_opt_out_em: row.whatsapp_opt_out_em ?? null,
+    whatsapp_ultima_resposta: row.whatsapp_ultima_resposta ?? null,
+    whatsapp_ultima_resposta_em: row.whatsapp_ultima_resposta_em ?? null,
   };
 }
 

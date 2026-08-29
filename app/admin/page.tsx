@@ -8,6 +8,7 @@ import { isZapiConfigured } from "@/lib/z-api";
 import { listLeadsMeta } from "@/lib/leads-meta";
 import { leadMetaConfirmado } from "@/lib/lead-meta-status";
 import { buildEngajadosAudience } from "@/lib/export/meta-audience";
+import { getWhatsappFilaEstado } from "@/lib/whatsapp-fila-server";
 import { redirect } from "next/navigation";
 
 function SetupCard({
@@ -53,6 +54,10 @@ export default async function AdminPage({
     (item) => leadMetaConfirmado(item) && !item.inscricao_id,
   ).length;
   const engajadosCount = buildEngajadosAudience(data, metaLeads).length;
+  const whatsappFila =
+    tab === "meta"
+      ? await getWhatsappFilaEstado(metaLeads)
+      : null;
 
   return (
     <main className="min-h-[100svh] bg-[#f3efe4] px-5 py-8 sm:px-8">
@@ -83,6 +88,7 @@ export default async function AdminPage({
               leads={leadsResult.data}
               sqlMissing={leadsResult.error === "sql-missing"}
               zapiReady={isZapiConfigured()}
+              filaEstado={whatsappFila}
             />
           )
         ) : error === "sql-missing" ? (

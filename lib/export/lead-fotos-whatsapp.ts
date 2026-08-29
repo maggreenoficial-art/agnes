@@ -14,12 +14,15 @@ export function leadFotosWhatsappMessage(nomeCompleto: string, leadId?: string) 
   const link = leadFotosLink(leadId);
   const oi = primeiro || "Oi";
   return [
-    `Oi, ${oi}! O seu perfil chegou até a equipe da Mix Models com a Agnes Pimentel e o Instituto Imperatriz.`,
+    `Oi, ${oi} — aqui é da Mix Models.`,
     "",
-    "Estamos montando o grupo da seleção presencial e queremos te avaliar com o cuidado que o seu perfil merece. O próximo passo é o book: cinco fotos só suas.",
+    "Você se inscreveu no formulário da seleção com a Agnes Pimentel, o do anúncio no Instagram. Estou no cadastro que você mandou.",
     "",
-    `Envie aqui: ${link}`,
+    `Para concluir a inscrição, envia 5 fotos aqui: ${link}`,
     "",
-    "Mix Models Agency · Instituto Imperatriz Leopoldinense",
+    "Se não quiser mais receber, responde SAIR.",
   ].join("\n");
 }
+
+export const WHATSAPP_OPT_OUT_REPLY =
+  "Beleza, não mando mais mensagem. Se mudar de ideia, o link das fotos continua no site.";

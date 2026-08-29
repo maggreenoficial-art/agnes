@@ -2,13 +2,14 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { deleteLeadMeta, whatsappLeadMetaFotos, whatsappLeadsMetaPendentes, importMetaCsv } from "@/app/admin/actions";
+import { deleteLeadMeta, whatsappLeadMetaFotos, whatsappLeadsMetaPendentes, whatsappLiberarFila, whatsappPausarFila, whatsappRetomarFila, whatsappReconciliarNaoEnviados, importMetaCsv } from "@/app/admin/actions";
 import { formatDateTime, instagramUrl, whatsappUrl } from "@/lib/inscricao";
-import { leadMetaConfirmado, leadTemWhatsapp, leadWhatsappEnviado, leadEmailStatus, leadEmailEnviado, leadEmailEntregue, leadEmailLido, leadEmailClicou, leadEmailBounce } from "@/lib/lead-meta-status";
+import { leadMetaConfirmado, leadTemWhatsapp, leadWhatsappEnviado, leadWhatsappSaiu, leadWhatsappRespondeu, leadEmailStatus, leadEmailEntregue, leadEmailLido, leadEmailBounce } from "@/lib/lead-meta-status";
 import type { LeadMeta } from "@/lib/leads-meta";
 import { PhotoGallery } from "@/components/admin/PhotoGallery";
 import { CopyLink } from "@/components/CopyLink";
 import { leadFotosWhatsappMessage } from "@/lib/export/lead-fotos-whatsapp";
+import { bloqueioEnvio, filaWhatsapp, podeLiberarFila, whatsappMonitor, type WhatsappFilaEstado } from "@/lib/whatsapp-fila";
 import Link from "next/link";
 
 type StatusFiltro =
@@ -17,25 +18,28 @@ type StatusFiltro =
   | "confirmado"
   | "enviado"
   | "lido"
-  | "clicou"
-  | "bounce";
+  | "respondeu"
+  | "bounce"
+  | "saiu";
 
-function emailBadge(lead: LeadMeta) {
+function whatsappBadge(lead: LeadMeta) {
+  if (leadWhatsappSaiu(lead)) {
+    return { label: "Saiu", className: "bg-red-100 text-red-800" };
+  }
+  if (leadWhatsappRespondeu(lead)) {
+    return { label: "Respondeu", className: "bg-lime text-ink" };
+  }
   const status = leadEmailStatus(lead);
-  if (!status) return null;
-  const styles: Record<
-    NonNullable<ReturnType<typeof leadEmailStatus>>,
-    { label: string; className: string }
-  > = {
-    enviado: { label: "Convite enviado", className: "bg-cream text-ink" },
+  if (!leadWhatsappEnviado(lead) || !status) return null;
+  const styles: Record<string, { label: string; className: string }> = {
+    enviado: { label: "Enviado", className: "bg-cream text-ink" },
     entregue: { label: "Entregue", className: "bg-ink/10 text-ink" },
     lido: { label: "Lido", className: "bg-gold/90 text-ink" },
-    clicou: { label: "Clicou no link", className: "bg-lime text-ink" },
     bounce: { label: "Não chegou", className: "bg-red-100 text-red-800" },
     falhou: { label: "Falhou", className: "bg-red-100 text-red-800" },
-    reclamou: { label: "Marcou spam", className: "bg-red-100 text-red-800" },
+    reclamou: { label: "Saiu", className: "bg-red-100 text-red-800" },
   };
-  return styles[status];
+  return styles[status] ?? { label: "Enviado", className: "bg-cream text-ink" };
 }
 
 function extraLabel(key: string) {
@@ -63,10 +67,12 @@ export function LeadsMetaBoard({
   leads,
   sqlMissing,
   zapiReady = false,
+  filaEstado,
 }: {
   leads: LeadMeta[];
   sqlMissing?: boolean;
   zapiReady?: boolean;
+  filaEstado?: WhatsappFilaEstado | null;
 }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -79,24 +85,45 @@ export function LeadsMetaBoard({
 
   const counts = useMemo(() => {
     const confirmado = leads.filter(leadMetaConfirmado).length;
-    const filaWhatsapp = leads.filter(
-      (item) =>
-        !leadMetaConfirmado(item) &&
-        leadTemWhatsapp(item) &&
-        !leadWhatsappEnviado(item),
-    ).length;
+    const fila = filaWhatsapp(leads);
+    const enviados = leads.filter(leadWhatsappEnviado);
     return {
       todas: leads.length,
       confirmado,
       pendente: leads.length - confirmado,
-      filaWhatsapp,
-      enviado: leads.filter(leadEmailEnviado).length,
-      entregue: leads.filter(leadEmailEntregue).length,
-      lido: leads.filter(leadEmailLido).length,
-      clicou: leads.filter(leadEmailClicou).length,
-      bounce: leads.filter(leadEmailBounce).length,
+      filaWhatsapp: fila.length,
+      enviado: enviados.length,
+      entregue: enviados.filter(leadEmailEntregue).length,
+      lido: enviados.filter(leadEmailLido).length,
+      bounce: enviados.filter(leadEmailBounce).length,
+      saiu: leads.filter(leadWhatsappSaiu).length,
+      respondeu: leads.filter(leadWhatsappRespondeu).length,
     };
   }, [leads]);
+
+  const envios = useMemo(
+    () =>
+      leads
+        .filter(leadWhatsappEnviado)
+        .sort((a, b) =>
+          (b.email_fotos_em ?? "").localeCompare(a.email_fotos_em ?? ""),
+        ),
+    [leads],
+  );
+
+  const estado: WhatsappFilaEstado = filaEstado ?? {
+    modo: "piloto",
+    modoAntesPausa: null,
+    pilotoLimite: 10,
+    pilotoEnviados: 0,
+    ultimoEnvioEm: null,
+    proximoIntervaloSeg: 300,
+    esperaSeg: 0,
+    sqlMissing: true,
+  };
+  const monitor = useMemo(() => whatsappMonitor(leads), [leads]);
+  const bloqueio = bloqueioEnvio(estado);
+  const podeLiberar = podeLiberarFila(estado, monitor);
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -106,19 +133,19 @@ export function LeadsMetaBoard({
         const email = leadEmailStatus(item);
         if (filter === "pendente" && confirmado) return false;
         if (filter === "confirmado" && !confirmado) return false;
-        if (filter === "enviado" && !email) return false;
-        if (filter === "lido" && email !== "lido" && email !== "clicou") {
+        if (filter === "enviado" && !leadWhatsappEnviado(item)) return false;
+        if (filter === "lido" && (!leadWhatsappEnviado(item) || (email !== "lido" && email !== "clicou"))) {
           return false;
         }
-        if (filter === "clicou" && email !== "clicou") return false;
+        if (filter === "respondeu" && !leadWhatsappRespondeu(item)) return false;
         if (
           filter === "bounce" &&
-          email !== "bounce" &&
-          email !== "falhou" &&
-          email !== "reclamou"
+          (!leadWhatsappEnviado(item) ||
+            (email !== "bounce" && email !== "falhou"))
         ) {
           return false;
         }
+        if (filter === "saiu" && !leadWhatsappSaiu(item)) return false;
         if (!needle) return true;
         return [
           item.nome_completo,
@@ -179,11 +206,71 @@ export function LeadsMetaBoard({
     startTransition(async () => {
       const result = await whatsappLeadMetaFotos(id);
       setWhatsappingId(null);
-      if (result.error) {
+      if (!("ok" in result)) {
         setError(result.error);
         return;
       }
-      setMessage(`WhatsApp enviado para ${result.to}.`);
+      setMessage(
+        `WhatsApp enviado para ${result.to}. Espere ${result.esperaMinutos} min antes do próximo.`,
+      );
+      router.refresh();
+    });
+  }
+
+  function onLiberarFila() {
+    setError("");
+    setMessage("");
+    startTransition(async () => {
+      const result = await whatsappLiberarFila();
+      if (!("ok" in result)) {
+        setError(result.error);
+        return;
+      }
+      setMessage("Fila liberada. Continua um envio por vez, com pausa e horário de conversa.");
+      router.refresh();
+    });
+  }
+
+  function onPausarFila() {
+    setError("");
+    setMessage("");
+    startTransition(async () => {
+      const result = await whatsappPausarFila();
+      if (!("ok" in result)) {
+        setError(result.error);
+        return;
+      }
+      setMessage("Fila pausada. Nada sai até você retomar.");
+      router.refresh();
+    });
+  }
+
+  function onRetomarFila() {
+    setError("");
+    setMessage("");
+    startTransition(async () => {
+      const result = await whatsappRetomarFila();
+      if (!("ok" in result)) {
+        setError(result.error);
+        return;
+      }
+      setMessage("Fila retomada. Continua um envio por vez.");
+      router.refresh();
+    });
+  }
+
+  function onReconciliar() {
+    setError("");
+    setMessage("");
+    startTransition(async () => {
+      const result = await whatsappReconciliarNaoEnviados();
+      if (!("ok" in result)) {
+        setError(result.error);
+        return;
+      }
+      setMessage(
+        `Z-API conferida: ${result.mantidos} realmente receberam. ${result.voltaram} voltaram para a fila.`,
+      );
       router.refresh();
     });
   }
@@ -193,16 +280,12 @@ export function LeadsMetaBoard({
     setMessage("");
     startTransition(async () => {
       const result = await whatsappLeadsMetaPendentes();
-      if (result.error) {
+      if (!("ok" in result)) {
         setError(result.error);
         return;
       }
       setMessage(
-        `Enviamos ${result.enviados} WhatsApp${result.enviados === 1 ? "" : "s"}${
-          result.falhas ? ` (${result.falhas} não saíram)` : ""
-        }${
-          result.restantes ? `. Ainda faltam ${result.restantes} — clique de novo.` : "."
-        }`,
+        `Um WhatsApp enviado. Restam ${result.restantes} na fila. Espere ${result.esperaMinutos} min antes do próximo.`,
       );
       router.refresh();
     });
@@ -268,27 +351,124 @@ export function LeadsMetaBoard({
 
       <section className="rounded-[28px] bg-white p-5 text-ink sm:p-8">
         <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-ink/40">
-          WhatsApp
+          WhatsApp · operação humana
         </p>
         <h2 className="mt-1 font-display text-2xl font-semibold">
           Pedir o book no WhatsApp
         </h2>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-ink/60">
-          Convite da Mix Models para pendentes, no mesmo número do anúncio, com
-          o link de https://www.agnespimentel.com/fotos. Até 40 por vez. Elas
-          não saem juntas: o WhatsApp espera 12 a 15 segundos entre uma e outra,
-          com “digitando…” no meio.
+          Só quem entrou pelo Instant Form. Um envio por clique, pausa de 4 a 9
+          min, “digitando…” de 8 a 14 s, horário de Brasília (seg–sex 9h30–22h,
+          sáb 10h–16h, domingo fechado). A mensagem cita o anúncio e o
+          descadastro por SAIR. Piloto de {estado.pilotoLimite} antes do restante.
         </p>
-        <button
-          type="button"
-          disabled={pending || !zapiReady || counts.filaWhatsapp === 0}
-          onClick={onWhatsappPendentes}
-          className="mt-5 rounded-full bg-green px-5 py-2.5 text-sm font-bold text-white hover:bg-green-mid disabled:opacity-70"
-        >
-          {pending
-            ? "Enviando…"
-            : `Enviar para ${counts.filaWhatsapp} pendente${counts.filaWhatsapp === 1 ? "" : "s"}`}
-        </button>
+        <div className="mt-5 grid gap-3 sm:grid-cols-4">
+          <div className="rounded-2xl bg-cream px-4 py-3">
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-ink/40">
+              Modo
+            </p>
+            <p className="mt-1 font-display text-xl font-semibold">
+              {estado.modo === "pausado"
+                ? "Pausada"
+                : estado.modo === "liberado"
+                  ? "Liberada"
+                  : `Piloto ${estado.pilotoEnviados}/${estado.pilotoLimite}`}
+            </p>
+          </div>
+          <div className="rounded-2xl bg-cream px-4 py-3">
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-ink/40">
+              Na fila
+            </p>
+            <p className="mt-1 font-display text-xl font-semibold">
+              {counts.filaWhatsapp}
+            </p>
+          </div>
+          <div className="rounded-2xl bg-cream px-4 py-3">
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-ink/40">
+              Entregue / lido
+            </p>
+            <p className="mt-1 font-display text-xl font-semibold">
+              {monitor.entregues} / {monitor.lidos}
+            </p>
+          </div>
+          <div className="rounded-2xl bg-cream px-4 py-3">
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-ink/40">
+              Falhou / SAIR
+            </p>
+            <p className="mt-1 font-display text-xl font-semibold">
+              {monitor.falhou} / {monitor.saiu}
+            </p>
+          </div>
+        </div>
+        {estado.sqlMissing ? (
+          <p className="mt-4 rounded-2xl bg-gold/30 px-4 py-3 text-sm leading-6 text-ink">
+            Rode <code className="rounded bg-white px-1.5 py-0.5">supabase/whatsapp-fila.sql</code>{" "}
+            no SQL Editor. Sem isso o piloto e o descadastro não gravam de verdade.
+          </p>
+        ) : null}
+        {bloqueio ? (
+          <p className="mt-4 rounded-2xl bg-cream px-4 py-3 text-sm font-medium text-ink/70">
+            {bloqueio}
+          </p>
+        ) : null}
+        <div className="mt-5 flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={
+              pending ||
+              !zapiReady ||
+              counts.filaWhatsapp === 0 ||
+              Boolean(bloqueio)
+            }
+            onClick={onWhatsappPendentes}
+            className="rounded-full bg-green px-5 py-2.5 text-sm font-bold text-white hover:bg-green-mid disabled:opacity-70"
+          >
+            {pending ? "Enviando…" : "Enviar o próximo"}
+          </button>
+          {estado.modo !== "liberado" ? (
+            <button
+              type="button"
+              disabled={pending || !podeLiberar}
+              onClick={onLiberarFila}
+              className="rounded-full bg-lime px-5 py-2.5 text-sm font-bold text-ink hover:bg-lime-deep disabled:opacity-70"
+            >
+              Liberar restante
+            </button>
+          ) : null}
+          {estado.modo === "pausado" ? (
+            <button
+              type="button"
+              disabled={pending}
+              onClick={onRetomarFila}
+              className="rounded-full bg-lime px-5 py-2.5 text-sm font-bold text-ink hover:bg-lime-deep disabled:opacity-70"
+            >
+              Retomar
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled={pending || !zapiReady}
+              onClick={onPausarFila}
+              className="rounded-full bg-cream px-5 py-2.5 text-sm font-bold text-red-700 hover:bg-red-50 disabled:opacity-70"
+            >
+              Pausar
+            </button>
+          )}
+          <button
+            type="button"
+            disabled={pending || !zapiReady}
+            onClick={onReconciliar}
+            className="rounded-full bg-white px-5 py-2.5 text-sm font-bold text-ink ring-1 ring-black/10 hover:bg-cream disabled:opacity-70"
+          >
+            {pending ? "Conferindo…" : "Voltar não enviadas à fila"}
+          </button>
+        </div>
+        {!podeLiberar && estado.modo === "piloto" ? (
+          <p className="mt-3 text-sm text-ink/50">
+            Liberar o restante só depois do piloto de {estado.pilotoLimite}, se
+            falhas e SAIR ficarem abaixo de 3.
+          </p>
+        ) : null}
         {!zapiReady ? (
           <p className="mt-3 text-sm text-ink/50">
             Falta o <code className="rounded bg-cream px-1.5 py-0.5">ZAPI_CLIENT_TOKEN</code>{" "}
@@ -307,15 +487,116 @@ export function LeadsMetaBoard({
         ) : null}
       </section>
 
+      <section className="rounded-[28px] bg-white p-5 text-ink sm:p-8">
+        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-ink/40">
+          Envios e respostas
+        </p>
+        <h2 className="mt-1 font-display text-2xl font-semibold">
+          Quem já recebeu o WhatsApp
+        </h2>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-ink/60">
+          Nome, número, horário do envio, se entregou/leu e a última resposta
+          da lead. A resposta aparece aqui quando ela responder no WhatsApp.
+        </p>
+        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          {[
+            { label: "Na fila", value: counts.filaWhatsapp },
+            { label: "Enviados", value: counts.enviado },
+            { label: "Entregues", value: counts.entregue },
+            { label: "Lidos", value: counts.lido },
+            { label: "Responderam", value: counts.respondeu },
+            { label: "SAIR", value: counts.saiu },
+          ].map((stat) => (
+            <div key={stat.label} className="rounded-2xl bg-cream px-4 py-3">
+              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-ink/40">
+                {stat.label}
+              </p>
+              <p className="mt-1 font-display text-2xl font-semibold">
+                {stat.value}
+              </p>
+            </div>
+          ))}
+        </div>
+        {envios.length === 0 ? (
+          <p className="mt-5 text-sm text-ink/50">
+            Nenhum WhatsApp desta operação ainda. O lote antigo só entra aqui
+            se foi marcado com o prefixo do Z-API.
+          </p>
+        ) : (
+          <div className="mt-5 divide-y divide-black/6 overflow-hidden rounded-2xl border border-black/6">
+            {envios.map((item) => {
+              const badge = whatsappBadge(item);
+              return (
+                <article
+                  key={item.id}
+                  className="flex flex-col gap-2 bg-white px-4 py-4 sm:flex-row sm:items-start sm:justify-between"
+                >
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="font-display text-lg font-semibold leading-snug">
+                        {item.nome_completo}
+                      </h3>
+                      {badge ? (
+                        <span
+                          className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide ${badge.className}`}
+                        >
+                          {badge.label}
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="mt-1 text-sm text-ink/55">
+                      {item.telefone ? (
+                        <a
+                          href={whatsappUrl(item.telefone)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="font-semibold text-green hover:underline"
+                        >
+                          {item.telefone}
+                        </a>
+                      ) : (
+                        "Sem número"
+                      )}
+                      {item.email_fotos_em
+                        ? ` · enviado ${formatDateTime(item.email_fotos_em)}`
+                        : ""}
+                      {item.email_entregue_em
+                        ? ` · entregue ${formatDateTime(item.email_entregue_em)}`
+                        : ""}
+                      {item.email_lido_em
+                        ? ` · lido ${formatDateTime(item.email_lido_em)}`
+                        : ""}
+                    </p>
+                    {item.whatsapp_ultima_resposta ? (
+                      <p className="mt-2 rounded-xl bg-lime/30 px-3 py-2 text-sm leading-6 text-ink">
+                        <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-ink/45">
+                          Resposta
+                          {item.whatsapp_ultima_resposta_em
+                            ? ` · ${formatDateTime(item.whatsapp_ultima_resposta_em)}`
+                            : ""}
+                        </span>
+                        <span className="mt-0.5 block whitespace-pre-wrap">
+                          {item.whatsapp_ultima_resposta}
+                        </span>
+                      </p>
+                    ) : (
+                      <p className="mt-2 text-sm text-ink/40">
+                        Ainda sem resposta.
+                      </p>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
           { label: "Todos", value: counts.todas },
           { label: "Pendentes", value: counts.pendente },
           { label: "Confirmados", value: counts.confirmado },
-          { label: "WhatsApp", value: counts.enviado },
-          { label: "Entregues", value: counts.entregue },
-          { label: "Lidos", value: counts.lido },
-          { label: "Clicaram", value: counts.clicou },
           { label: "Não chegou", value: counts.bounce },
         ].map((stat) => (
           <div
@@ -339,10 +620,11 @@ export function LeadsMetaBoard({
               { id: "todas", label: "Todas" },
               { id: "pendente", label: "Pendentes" },
               { id: "confirmado", label: "Confirmados" },
-              { id: "enviado", label: "Convite enviado" },
+              { id: "enviado", label: "Enviados" },
               { id: "lido", label: "Lidos" },
-              { id: "clicou", label: "Clicaram" },
+              { id: "respondeu", label: "Responderam" },
               { id: "bounce", label: "Não chegou" },
+              { id: "saiu", label: "SAIR" },
             ] as const
           ).map((item) => {
             const active = filter === item.id;
@@ -384,7 +666,7 @@ export function LeadsMetaBoard({
           {filtered.map((item) => {
             const answers = extraEntries(item.extras);
             const confirmado = leadMetaConfirmado(item);
-            const mail = emailBadge(item);
+            const badge = whatsappBadge(item);
             return (
               <article
                 key={item.id}
@@ -402,11 +684,11 @@ export function LeadsMetaBoard({
                       >
                         {confirmado ? "Confirmado" : "Pendente"}
                       </span>
-                      {mail ? (
+                      {badge ? (
                         <span
-                          className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${mail.className}`}
+                          className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${badge.className}`}
                         >
-                          {mail.label}
+                          {badge.label}
                         </span>
                       ) : null}
                     </div>
@@ -426,9 +708,19 @@ export function LeadsMetaBoard({
                         {item.email_lido_em
                           ? ` · lido ${formatDateTime(item.email_lido_em)}`
                           : ""}
-                        {item.email_clicou_em
-                          ? ` · clicou ${formatDateTime(item.email_clicou_em)}`
-                          : ""}
+                      </p>
+                    ) : null}
+                    {item.whatsapp_ultima_resposta ? (
+                      <p className="mt-2 rounded-xl bg-lime/30 px-3 py-2 text-sm leading-6 text-ink">
+                        <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-ink/45">
+                          Resposta
+                          {item.whatsapp_ultima_resposta_em
+                            ? ` · ${formatDateTime(item.whatsapp_ultima_resposta_em)}`
+                            : ""}
+                        </span>
+                        <span className="mt-0.5 block whitespace-pre-wrap">
+                          {item.whatsapp_ultima_resposta}
+                        </span>
                       </p>
                     ) : null}
                   </div>
@@ -444,10 +736,13 @@ export function LeadsMetaBoard({
                         <CopyLink path={`/acompanhar/${item.inscricao_id}`} compact />
                       </>
                     ) : null}
-                    {!confirmado && leadTemWhatsapp(item) ? (
+                    {!confirmado &&
+                    leadTemWhatsapp(item) &&
+                    !leadWhatsappEnviado(item) &&
+                    !leadWhatsappSaiu(item) ? (
                       <button
                         type="button"
-                        disabled={pending || !zapiReady}
+                        disabled={pending || !zapiReady || Boolean(bloqueio)}
                         onClick={() => onWhatsappOne(item.id)}
                         className="rounded-full bg-lime px-3 py-1.5 text-xs font-bold text-ink hover:bg-lime-deep disabled:opacity-70"
                       >

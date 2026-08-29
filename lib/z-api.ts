@@ -42,6 +42,32 @@ function zapiUrl(path: string) {
   return `https://api.z-api.io/instances/${instance}/token/${token}/${path.replace(/^\//, "")}`;
 }
 
+export async function listZapiChats() {
+  const chats: Array<{ phone?: string; isGroup?: boolean; name?: string }> = [];
+  for (let page = 1; page <= 40; page += 1) {
+    const response = await fetch(zapiUrl(`chats?page=${page}&pageSize=200`), {
+      headers: zapiHeaders(),
+    });
+    const details = await response.text();
+    if (!response.ok) {
+      throw new Error(zapiErrorMessage(details) || "Falha ao listar chats da Z-API.");
+    }
+    let list: unknown = [];
+    try {
+      list = JSON.parse(details);
+    } catch {
+      list = [];
+    }
+    const rows = Array.isArray(list) ? list : [];
+    if (rows.length === 0) break;
+    chats.push(
+      ...(rows as Array<{ phone?: string; isGroup?: boolean; name?: string }>),
+    );
+    if (rows.length < 200) break;
+  }
+  return chats;
+}
+
 function randomInt(min: number, max: number) {
   return min + Math.floor(Math.random() * (max - min + 1));
 }
@@ -49,6 +75,8 @@ function randomInt(min: number, max: number) {
 export async function sendZapiText(options: {
   phone: string;
   message: string;
+  delayTyping?: number;
+  delayMessage?: number;
 }): Promise<{ id: string | null }> {
   const phone = whatsappDigits(options.phone);
   if (!phone) {
@@ -61,8 +89,8 @@ export async function sendZapiText(options: {
     body: JSON.stringify({
       phone,
       message: options.message,
-      delayTyping: randomInt(4, 8),
-      delayMessage: randomInt(12, 15),
+      delayTyping: options.delayTyping ?? randomInt(8, 14),
+      delayMessage: options.delayMessage ?? 15,
     }),
   });
   const details = await response.text();

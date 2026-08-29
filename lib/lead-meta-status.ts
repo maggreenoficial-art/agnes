@@ -25,6 +25,19 @@ export function leadWhatsappEnviado(lead: { email_resend_id?: string | null }) {
   return (lead.email_resend_id ?? "").startsWith("wa:");
 }
 
+export function leadWhatsappSaiu(lead: {
+  whatsapp_opt_out_em?: string | null;
+  email_status?: string | null;
+}) {
+  return Boolean(lead.whatsapp_opt_out_em) || lead.email_status === "reclamou";
+}
+
+export function leadWhatsappRespondeu(lead: {
+  whatsapp_ultima_resposta?: string | null;
+}) {
+  return Boolean(lead.whatsapp_ultima_resposta?.trim());
+}
+
 export function leadEmailStatus(lead: {
   email_status?: string | null;
   email_fotos_em?: string | null;

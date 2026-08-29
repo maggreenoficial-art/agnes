@@ -1,5 +1,16 @@
 import { getAdminSecret } from "@/lib/admin-auth";
-import { applyLeadEmailEvent } from "@/lib/leads-meta";
+import { WHATSAPP_OPT_OUT_REPLY } from "@/lib/export/lead-fotos-whatsapp";
+import { applyLeadEmailEvent, listLeadsMeta } from "@/lib/leads-meta";
+import {
+  incomingPreview,
+  isOptOutText,
+  webhookPhone,
+} from "@/lib/whatsapp-fila";
+import {
+  marcarWhatsappOptOut,
+  registrarMensagemWhatsapp,
+} from "@/lib/whatsapp-fila-server";
+import { sendZapiText } from "@/lib/z-api";
 
 export const runtime = "nodejs";
 
@@ -7,11 +18,25 @@ type ZapiPayload = {
   instanceId?: string;
   status?: string;
   type?: string;
+  fromMe?: boolean;
+  phone?: string;
+  chatId?: string;
   ids?: unknown;
   id?: string;
   messageId?: string;
   momment?: number;
   moment?: number;
+  text?: unknown;
+  message?: unknown;
+  image?: unknown;
+  audio?: unknown;
+  video?: unknown;
+  document?: unknown;
+  sticker?: unknown;
+  location?: unknown;
+  contact?: unknown;
+  reaction?: unknown;
+  ptt?: unknown;
 };
 
 function eventFromStatus(status: string) {
@@ -55,6 +80,63 @@ export async function GET() {
   return Response.json({ ok: true });
 }
 
+async function handleIncoming(body: ZapiPayload) {
+  if (body.status && eventFromStatus(body.status)) return null;
+  if (body.fromMe) return { ok: true, ignored: true };
+  const type = (body.type ?? "").toLowerCase();
+  if (type && type !== "receivedcallback" && type !== "received") {
+    return null;
+  }
+  const phone = webhookPhone(body);
+  if (!phone) return null;
+  const preview = incomingPreview(body);
+  if (!preview.texto) return null;
+
+  const at = eventAt(body);
+  const messageId = String(body.messageId ?? body.id ?? "");
+  await registrarMensagemWhatsapp({
+    phone,
+    direcao: "in",
+    texto: preview.texto,
+    tipo: preview.tipo,
+    messageId,
+    at,
+  });
+
+  if (!isOptOutText(preview.texto)) {
+    return { ok: true, received: true };
+  }
+
+  const opted = await marcarWhatsappOptOut(phone);
+  if (opted.n === 0) {
+    const listed = await listLeadsMeta();
+    const lead = listed.data.find((item) => {
+      const digits = (item.telefone ?? "").replace(/\D/g, "");
+      return digits.slice(-8) === phone.slice(-8);
+    });
+    if (lead) {
+      await applyLeadEmailEvent({
+        emailId: lead.email_resend_id || "wa:optout",
+        evento: "email.complained",
+        leadId: lead.id,
+      });
+    }
+  }
+
+  try {
+    await sendZapiText({
+      phone,
+      message: WHATSAPP_OPT_OUT_REPLY,
+      delayTyping: 3,
+      delayMessage: 2,
+    });
+  } catch (caught) {
+    console.error(caught);
+  }
+
+  return { ok: true, optOut: true };
+}
+
 export async function POST(request: Request) {
   const payload = await request.text();
   const body = parseBody(payload);
@@ -69,16 +151,19 @@ export async function POST(request: Request) {
     return new Response("Invalid instance", { status: 401 });
   }
 
-  const evento = eventFromStatus(body.status ?? "");
-  const ids = messageIds(body);
-  if (!evento || ids.length === 0) {
-    return Response.json({ ok: true, ignored: true });
-  }
-
   try {
     getAdminSecret();
   } catch {
     return Response.json({ ok: false }, { status: 500 });
+  }
+
+  const incoming = await handleIncoming(body);
+  if (incoming) return Response.json(incoming);
+
+  const evento = eventFromStatus(body.status ?? "");
+  const ids = messageIds(body);
+  if (!evento || ids.length === 0) {
+    return Response.json({ ok: true, ignored: true });
   }
 
   const at = eventAt(body);
