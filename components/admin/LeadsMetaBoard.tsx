@@ -9,7 +9,7 @@ import type { LeadMeta } from "@/lib/leads-meta";
 import { PhotoGallery } from "@/components/admin/PhotoGallery";
 import { CopyLink } from "@/components/CopyLink";
 import { leadFotosWhatsappMessage } from "@/lib/export/lead-fotos-whatsapp";
-import { bloqueioEnvio, filaWhatsapp, podeLiberarFila, whatsappMonitor, type WhatsappFilaEstado } from "@/lib/whatsapp-fila";
+import { avaliacaoPosPiloto, bloqueioEnvio, filaWhatsapp, podeLiberarFila, whatsappMonitor, type WhatsappFilaEstado } from "@/lib/whatsapp-fila";
 import Link from "next/link";
 
 type StatusFiltro =
@@ -131,6 +131,7 @@ export function LeadsMetaBoard({
       estado.modo !== "pausado" &&
       !(estado.modo === "piloto" && estado.pilotoEnviados >= estado.pilotoLimite),
   );
+  const posPiloto = avaliacaoPosPiloto(estado, monitor);
 
   useEffect(() => {
     if (!estado.autoEnvio || estado.modo === "pausado") return;
@@ -394,7 +395,8 @@ export function LeadsMetaBoard({
           por vez, pausa de 4 a 9 min, “digitando…” de 8 a 14 s, horário de
           Brasília (seg–sex 9h30–22h, sáb 10h–16h, domingo fechado). Continua
           mesmo com a página fechada. A mensagem cita o anúncio e o descadastro
-          por SAIR. Piloto de {estado.pilotoLimite} antes do restante.
+          por SAIR. Depois do piloto de {estado.pilotoLimite}, se falhas e SAIR
+          ficarem abaixo de 3, o restante segue sozinho.
         </p>
         <div className="mt-5 grid gap-3 sm:grid-cols-4">
           <div className="rounded-2xl bg-cream px-4 py-3">
@@ -442,14 +444,24 @@ export function LeadsMetaBoard({
           </p>
         ) : null}
         {estado.autoEnvio && estado.modo !== "pausado" ? (
-          <p className="mt-4 rounded-2xl bg-lime/40 px-4 py-3 text-sm font-medium text-ink">
+          <p
+            className={
+              posPiloto.status === "bloqueado"
+                ? "mt-4 rounded-2xl bg-gold/30 px-4 py-3 text-sm font-medium text-ink"
+                : "mt-4 rounded-2xl bg-lime/40 px-4 py-3 text-sm font-medium text-ink"
+            }
+          >
             Envio automático ligado. Pode fechar a página — ao reabrir, o
             processo continua daqui.
-            {soEspera
-              ? ` Próximo em cerca de ${esperaMinutos} min.`
-              : bloqueio
-                ? ` ${bloqueio}`
-                : " O próximo sai assim que o intervalo e o horário permitirem."}
+            {posPiloto.status === "aguardando" ||
+            posPiloto.status === "bloqueado" ||
+            posPiloto.status === "pronto"
+              ? ` ${posPiloto.mensagem}`
+              : soEspera
+                ? ` Próximo em cerca de ${esperaMinutos} min.`
+                : bloqueio
+                  ? ` ${bloqueio}`
+                  : " O próximo sai assim que o intervalo e o horário permitirem."}
           </p>
         ) : bloqueio ? (
           <p className="mt-4 rounded-2xl bg-cream px-4 py-3 text-sm font-medium text-ink/70">
@@ -474,7 +486,7 @@ export function LeadsMetaBoard({
               {pending ? "Ligando…" : "Iniciar envio"}
             </button>
           )}
-          {estado.modo !== "liberado" ? (
+          {estado.modo !== "liberado" && !estado.autoEnvio ? (
             <button
               type="button"
               disabled={pending || !podeLiberar}
@@ -512,9 +524,9 @@ export function LeadsMetaBoard({
             {pending ? "Conferindo…" : "Voltar não enviadas à fila"}
           </button>
         </div>
-        {!podeLiberar && estado.modo === "piloto" ? (
+        {!podeLiberar && estado.modo === "piloto" && !estado.autoEnvio ? (
           <p className="mt-3 text-sm text-ink/50">
-            Liberar o restante só depois do piloto de {estado.pilotoLimite}, se
+            O restante só segue depois do piloto de {estado.pilotoLimite}, se
             falhas e SAIR ficarem abaixo de 3.
           </p>
         ) : null}

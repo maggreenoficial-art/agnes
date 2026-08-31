@@ -10,16 +10,19 @@ import {
   markLeadsMetaEmailEnviado,
 } from "@/lib/leads-meta";
 import {
+  avaliacaoPosPiloto,
   bloqueioEnvio,
   filaWhatsapp,
   randomIntervaloSeg,
   whatsappHorarioError,
+  whatsappMonitor,
 } from "@/lib/whatsapp-fila";
 import {
   claimWhatsappTick,
   getWhatsappFilaEstado,
   registrarEnvioWhatsapp,
   registrarMensagemWhatsapp,
+  setWhatsappModo,
 } from "@/lib/whatsapp-fila-server";
 import { sendZapiText, zapiConfigError } from "@/lib/z-api";
 
@@ -118,8 +121,19 @@ export async function enviarProximoWhatsapp(id?: string, options?: { ignoreEsper
 export async function processarFilaWhatsapp() {
   const { data, error } = await listLeadsMeta();
   if (error) return { skipped: error };
-  const estado = await getWhatsappFilaEstado(data);
+  let estado = await getWhatsappFilaEstado(data);
   if (!estado.autoEnvio) return { skipped: "auto-off" };
+
+  if (estado.modo === "piloto" && estado.pilotoEnviados >= estado.pilotoLimite) {
+    const avaliacao = avaliacaoPosPiloto(estado, whatsappMonitor(data));
+    if (avaliacao.status !== "pronto") {
+      return { skipped: avaliacao.mensagem ?? "piloto" };
+    }
+    const liberated = await setWhatsappModo("liberado");
+    if (liberated.error) return { skipped: liberated.error };
+    estado = await getWhatsappFilaEstado(data);
+  }
+
   const bloqueio = bloqueioEnvio(estado);
   if (bloqueio) return { skipped: bloqueio };
   const claimed = await claimWhatsappTick();

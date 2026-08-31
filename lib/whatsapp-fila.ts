@@ -137,6 +137,53 @@ export function podeLiberarFila(
   return true;
 }
 
+const PILOTO_OBSERVACAO_SEG = 8 * 60;
+
+export function avaliacaoPosPiloto(
+  estado: WhatsappFilaEstado,
+  monitor: ReturnType<typeof whatsappMonitor>,
+) {
+  if (estado.modo !== "piloto" || estado.pilotoEnviados < estado.pilotoLimite) {
+    return { status: "nao" as const, mensagem: null as string | null };
+  }
+  if (monitor.falhou >= 3) {
+    return {
+      status: "bloqueado" as const,
+      mensagem:
+        "Piloto com 3 ou mais falhas. O restante não segue sozinho — revise a fila ou pause.",
+    };
+  }
+  if (monitor.saiu >= 3) {
+    return {
+      status: "bloqueado" as const,
+      mensagem:
+        "3 ou mais pediram SAIR. O restante não segue sozinho — revise a fila ou pause.",
+    };
+  }
+  const last = estado.ultimoEnvioEm
+    ? new Date(estado.ultimoEnvioEm).getTime()
+    : 0;
+  const elapsed = last ? Math.floor((Date.now() - last) / 1000) : PILOTO_OBSERVACAO_SEG;
+  const espera = Math.max(estado.esperaSeg, PILOTO_OBSERVACAO_SEG - elapsed);
+  if (espera > 0) {
+    return {
+      status: "aguardando" as const,
+      mensagem: `Piloto ${estado.pilotoEnviados}/${estado.pilotoLimite} concluído. Conferindo entregue, lido e SAIR. O restante começa sozinho em cerca de ${Math.ceil(espera / 60)} min.`,
+    };
+  }
+  const horario = whatsappHorarioError();
+  if (horario) {
+    return {
+      status: "aguardando" as const,
+      mensagem: `Piloto ${estado.pilotoEnviados}/${estado.pilotoLimite} ok. ${horario} O restante segue sozinho no horário.`,
+    };
+  }
+  return {
+    status: "pronto" as const,
+    mensagem: `Piloto ${estado.pilotoEnviados}/${estado.pilotoLimite} ok. Liberando o restante agora.`,
+  };
+}
+
 export function webhookPhone(body: {
   phone?: unknown;
   chatId?: unknown;
@@ -186,7 +233,7 @@ export function bloqueioEnvio(estado: WhatsappFilaEstado) {
     return "A fila está pausada.";
   }
   if (estado.modo === "piloto" && estado.pilotoEnviados >= estado.pilotoLimite) {
-    return `Piloto concluído (${estado.pilotoEnviados}/${estado.pilotoLimite}). Olhe entregue/lido/SAIR no painel antes de liberar o restante.`;
+    return `Piloto concluído (${estado.pilotoEnviados}/${estado.pilotoLimite}). Se falhas e SAIR ficarem abaixo de 3, o restante segue sozinho.`;
   }
   if (estado.esperaSeg > 0) {
     const min = Math.ceil(estado.esperaSeg / 60);
