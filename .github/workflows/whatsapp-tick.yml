@@ -1,0 +1,22 @@
+name: WhatsApp fila
+
+on:
+  schedule:
+    - cron: "*/2 * * * *"
+  workflow_dispatch:
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Processar próximo envio
+        env:
+          SECRET: ${{ secrets.WHATSAPP_TICK_SECRET }}
+        run: |
+          if [ -z "$SECRET" ]; then
+            echo "Configure WHATSAPP_TICK_SECRET nos secrets do GitHub (pode ser a senha do admin)."
+            exit 0
+          fi
+          curl -fsS -X GET \
+            -H "Authorization: Bearer $SECRET" \
+            https://www.agnespimentel.com/api/whatsapp/tick

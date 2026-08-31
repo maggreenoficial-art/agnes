@@ -20,6 +20,7 @@ export type WhatsappFilaEstado = {
   ultimoEnvioEm: string | null;
   proximoIntervaloSeg: number;
   esperaSeg: number;
+  autoEnvio: boolean;
   sqlMissing: boolean;
 };
 

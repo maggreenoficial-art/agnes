@@ -9,27 +9,20 @@ import {
   setAdminCookie,
 } from "@/lib/admin-auth";
 import { getInscricao, removeInscricao, setInscricaoStatus } from "@/lib/admin-data";
-import { importLeadsMeta, listLeadsMeta, markLeadsMetaEmailEnviado, removeLeadMeta } from "@/lib/leads-meta";
-import { leadMetaConfirmado, leadTemWhatsapp, leadWhatsappEnviado, leadWhatsappSaiu } from "@/lib/lead-meta-status";
+import { importLeadsMeta, listLeadsMeta, removeLeadMeta } from "@/lib/leads-meta";
+import { leadWhatsappEnviado } from "@/lib/lead-meta-status";
 import { parseMetaLeadsCsv } from "@/lib/meta-csv";
 import { sendProfileEmail } from "@/lib/export/email";
-import { leadFotosWhatsappMessage } from "@/lib/export/lead-fotos-whatsapp";
 import { buildProfileExcel } from "@/lib/export/excel";
 import { fileBaseName } from "@/lib/export/fields";
 import { mailConfigError } from "@/lib/export/mail-config";
-import { sendZapiText, zapiConfigError, listZapiChats, whatsappDigits } from "@/lib/z-api";
+import { zapiConfigError, listZapiChats, whatsappDigits } from "@/lib/z-api";
+import { podeLiberarFila, whatsappMonitor } from "@/lib/whatsapp-fila";
+import { enviarProximoWhatsapp, processarFilaWhatsapp } from "@/lib/whatsapp-enviar";
 import {
-  bloqueioEnvio,
-  filaWhatsapp,
-  podeLiberarFila,
-  randomIntervaloSeg,
-  whatsappMonitor,
-} from "@/lib/whatsapp-fila";
-import {
-  getWhatsappFilaEstado,
-  registrarEnvioWhatsapp,
-  registrarMensagemWhatsapp,
   desmarcarWhatsappLeads,
+  getWhatsappFilaEstado,
+  setWhatsappAuto,
   setWhatsappModo,
 } from "@/lib/whatsapp-fila-server";
 import { buildProfilePdf } from "@/lib/export/pdf";
@@ -212,116 +205,69 @@ export async function deleteLeadMeta(id: string) {
   return { ok: true };
 }
 
-async function enviarUmWhatsapp(id?: string) {
-  const configError = zapiConfigError();
-  if (configError) return { error: configError };
-
-  const { data, error } = await listLeadsMeta();
-  if (error) {
-    return {
-      error:
-        error === "sql-missing"
-          ? "Falta rodar supabase/leads-meta-fotos.sql no Supabase."
-          : error,
-    };
-  }
-
-  const estado = await getWhatsappFilaEstado(data);
-  const bloqueio = bloqueioEnvio(estado);
-  if (bloqueio) return { error: bloqueio };
-
-  const fila = filaWhatsapp(data);
-  const lead = id ? data.find((item) => item.id === id) : fila[0];
-  if (!lead) return { error: "Lead não encontrado." };
-  if (leadMetaConfirmado(lead)) {
-    return { error: "Esse cadastro já está confirmado com fotos." };
-  }
-  if (!leadTemWhatsapp(lead)) {
-    return { error: "Esse lead não tem WhatsApp." };
-  }
-  if (leadWhatsappEnviado(lead)) {
-    return { error: "Esse lead já recebeu o convite no WhatsApp." };
-  }
-  if (leadWhatsappSaiu(lead)) {
-    return { error: "Essa pessoa pediu para sair. Não mandamos de novo." };
-  }
-
-  const texto = leadFotosWhatsappMessage(lead.nome_completo, lead.id);
-  let messageId: string | null = null;
-  let zapiId: string | null = null;
-  try {
-    const sent = await sendZapiText({
-      phone: lead.telefone,
-      message: texto,
-    });
-    zapiId = sent.id;
-    messageId = sent.id ? `wa:${sent.id}` : "wa:";
-  } catch (caught) {
-    console.error(caught);
-    return {
-      error:
-        caught instanceof Error
-          ? caught.message
-          : "Não foi possível enviar o WhatsApp agora.",
-    };
-  }
-
-  const marked = await markLeadsMetaEmailEnviado([
-    { id: lead.id, emailId: messageId },
-  ]);
-  if (marked.error && marked.error !== "sql-missing") {
-    return { error: marked.error };
-  }
-
-  await registrarMensagemWhatsapp({
-    phone: lead.telefone,
-    direcao: "out",
-    texto,
-    tipo: "text",
-    messageId: zapiId,
-    leadId: lead.id,
-  });
-
-  const intervaloSeg = randomIntervaloSeg();
-  await registrarEnvioWhatsapp(intervaloSeg);
-  revalidatePath("/admin");
-  return {
-    ok: true as const,
-    to: lead.telefone,
-    nome: lead.nome_completo,
-    restantes: fila.filter((item) => item.id !== lead.id).length,
-    piloto: estado.pilotoEnviados + (estado.modo === "piloto" ? 1 : 0),
-    limite: estado.pilotoLimite,
-    modo: estado.modo,
-    esperaMinutos: Math.ceil(intervaloSeg / 60),
-  };
-}
-
 export async function whatsappLeadMetaFotos(id: string) {
   if (!(await isAdmin())) {
     return { error: "Sessão expirada. Entre de novo." };
   }
-  return enviarUmWhatsapp(id);
+  const result = await enviarProximoWhatsapp(id);
+  if ("ok" in result) revalidatePath("/admin");
+  return result;
 }
 
 export async function whatsappLeadsMetaPendentes() {
   if (!(await isAdmin())) {
     return { error: "Sessão expirada. Entre de novo." };
   }
-  const result = await enviarUmWhatsapp();
-  if (!("ok" in result)) return result;
+  const auto = await setWhatsappAuto(true);
+  const result = await enviarProximoWhatsapp();
+  revalidatePath("/admin");
+  if ("ok" in result) {
+    return {
+      ok: true as const,
+      enviados: 1,
+      restantes: result.restantes,
+      to: result.to,
+      nome: result.nome,
+      piloto: result.piloto,
+      limite: result.limite,
+      modo: result.modo,
+      esperaMinutos: result.esperaMinutos,
+      falhas: 0,
+    };
+  }
+  if (auto.error === "sql-missing") {
+    return result;
+  }
+  const erro = result.error ?? "Não foi possível enviar agora.";
+  const esperaOuHorario =
+    /Espere |horário|Domingo|Sábado|Piloto concluído|não manda|Fora do horário|conversa real/i.test(
+      erro,
+    );
+  if (!esperaOuHorario) {
+    return { error: erro };
+  }
   return {
     ok: true as const,
-    enviados: 1,
-    restantes: result.restantes,
-    to: result.to,
-    nome: result.nome,
-    piloto: result.piloto,
-    limite: result.limite,
-    modo: result.modo,
-    esperaMinutos: result.esperaMinutos,
+    enviados: 0,
+    restantes: undefined,
+    to: undefined,
+    nome: undefined,
+    piloto: undefined,
+    limite: undefined,
+    modo: undefined,
+    esperaMinutos: undefined,
     falhas: 0,
+    aviso: erro,
   };
+}
+
+export async function whatsappTickFila() {
+  if (!(await isAdmin())) {
+    return { error: "Sessão expirada. Entre de novo." };
+  }
+  const result = await processarFilaWhatsapp();
+  revalidatePath("/admin");
+  return result;
 }
 
 export async function whatsappLiberarFila() {
@@ -384,6 +330,7 @@ export async function whatsappRetomarFila() {
     return { error: "Rode supabase/whatsapp-fila.sql no SQL Editor." };
   }
   if (updated.error) return { error: updated.error };
+  await setWhatsappAuto(true);
   revalidatePath("/admin");
   return { ok: true as const };
 }

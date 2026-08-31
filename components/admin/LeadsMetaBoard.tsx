@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { deleteLeadMeta, whatsappLeadMetaFotos, whatsappLeadsMetaPendentes, whatsappLiberarFila, whatsappPausarFila, whatsappRetomarFila, whatsappReconciliarNaoEnviados, importMetaCsv } from "@/app/admin/actions";
+import { deleteLeadMeta, whatsappLeadMetaFotos, whatsappLeadsMetaPendentes, whatsappLiberarFila, whatsappPausarFila, whatsappRetomarFila, whatsappReconciliarNaoEnviados, whatsappTickFila, importMetaCsv } from "@/app/admin/actions";
 import { formatDateTime, instagramUrl, whatsappUrl } from "@/lib/inscricao";
 import { leadMetaConfirmado, leadTemWhatsapp, leadWhatsappEnviado, leadWhatsappSaiu, leadWhatsappRespondeu, leadEmailStatus, leadEmailEntregue, leadEmailLido, leadEmailBounce } from "@/lib/lead-meta-status";
 import type { LeadMeta } from "@/lib/leads-meta";
@@ -119,11 +119,38 @@ export function LeadsMetaBoard({
     ultimoEnvioEm: null,
     proximoIntervaloSeg: 300,
     esperaSeg: 0,
+    autoEnvio: false,
     sqlMissing: true,
   };
   const monitor = useMemo(() => whatsappMonitor(leads), [leads]);
   const bloqueio = bloqueioEnvio(estado);
   const podeLiberar = podeLiberarFila(estado, monitor);
+  const esperaMinutos = Math.ceil(estado.esperaSeg / 60);
+  const soEspera = Boolean(
+    estado.esperaSeg > 0 &&
+      estado.modo !== "pausado" &&
+      !(estado.modo === "piloto" && estado.pilotoEnviados >= estado.pilotoLimite),
+  );
+
+  useEffect(() => {
+    if (!estado.autoEnvio || estado.modo === "pausado") return;
+    let cancelled = false;
+    async function pulse() {
+      const result = await whatsappTickFila();
+      if (cancelled) return;
+      if (result && "error" in result && result.error) {
+        setError(result.error);
+      }
+      router.refresh();
+    }
+    const later = window.setTimeout(pulse, 2500);
+    const id = window.setInterval(pulse, 20000);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(later);
+      window.clearInterval(id);
+    };
+  }, [estado.autoEnvio, estado.modo, router]);
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -254,7 +281,7 @@ export function LeadsMetaBoard({
         setError(result.error);
         return;
       }
-      setMessage("Fila retomada. Continua um envio por vez.");
+      setMessage("Fila retomada. Envio automático ligado — pode fechar a página.");
       router.refresh();
     });
   }
@@ -280,13 +307,19 @@ export function LeadsMetaBoard({
     setMessage("");
     startTransition(async () => {
       const result = await whatsappLeadsMetaPendentes();
-      if (!("ok" in result)) {
+      if (!result.ok) {
         setError(result.error);
         return;
       }
-      setMessage(
-        `Um WhatsApp enviado. Restam ${result.restantes} na fila. Espere ${result.esperaMinutos} min antes do próximo.`,
-      );
+      if (result.enviados === 1) {
+        setMessage(
+          `Envio automático ligado. Mandou para ${result.nome ?? result.to}. Próximo em ${result.esperaMinutos} min. Pode fechar a página.`,
+        );
+      } else {
+        setMessage(
+          `Envio automático ligado. ${result.aviso ?? "Continua sozinho, mesmo com a página fechada."}`,
+        );
+      }
       router.refresh();
     });
   }
@@ -357,10 +390,11 @@ export function LeadsMetaBoard({
           Pedir o book no WhatsApp
         </h2>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-ink/60">
-          Só quem entrou pelo Instant Form. Um envio por clique, pausa de 4 a 9
-          min, “digitando…” de 8 a 14 s, horário de Brasília (seg–sex 9h30–22h,
-          sáb 10h–16h, domingo fechado). A mensagem cita o anúncio e o
-          descadastro por SAIR. Piloto de {estado.pilotoLimite} antes do restante.
+          Só quem entrou pelo Instant Form. Um clique inicia a fila: um envio
+          por vez, pausa de 4 a 9 min, “digitando…” de 8 a 14 s, horário de
+          Brasília (seg–sex 9h30–22h, sáb 10h–16h, domingo fechado). Continua
+          mesmo com a página fechada. A mensagem cita o anúncio e o descadastro
+          por SAIR. Piloto de {estado.pilotoLimite} antes do restante.
         </p>
         <div className="mt-5 grid gap-3 sm:grid-cols-4">
           <div className="rounded-2xl bg-cream px-4 py-3">
@@ -403,28 +437,43 @@ export function LeadsMetaBoard({
         {estado.sqlMissing ? (
           <p className="mt-4 rounded-2xl bg-gold/30 px-4 py-3 text-sm leading-6 text-ink">
             Rode <code className="rounded bg-white px-1.5 py-0.5">supabase/whatsapp-fila.sql</code>{" "}
-            no SQL Editor. Sem isso o piloto e o descadastro não gravam de verdade.
+            no SQL Editor. Sem isso o piloto, o automático e o descadastro não
+            gravam de verdade.
           </p>
         ) : null}
-        {bloqueio ? (
+        {estado.autoEnvio && estado.modo !== "pausado" ? (
+          <p className="mt-4 rounded-2xl bg-lime/40 px-4 py-3 text-sm font-medium text-ink">
+            Envio automático ligado. Pode fechar a página — ao reabrir, o
+            processo continua daqui.
+            {soEspera
+              ? ` Próximo em cerca de ${esperaMinutos} min.`
+              : bloqueio
+                ? ` ${bloqueio}`
+                : " O próximo sai assim que o intervalo e o horário permitirem."}
+          </p>
+        ) : bloqueio ? (
           <p className="mt-4 rounded-2xl bg-cream px-4 py-3 text-sm font-medium text-ink/70">
             {bloqueio}
           </p>
         ) : null}
         <div className="mt-5 flex flex-wrap gap-2">
-          <button
-            type="button"
-            disabled={
-              pending ||
-              !zapiReady ||
-              counts.filaWhatsapp === 0 ||
-              Boolean(bloqueio)
-            }
-            onClick={onWhatsappPendentes}
-            className="rounded-full bg-green px-5 py-2.5 text-sm font-bold text-white hover:bg-green-mid disabled:opacity-70"
-          >
-            {pending ? "Enviando…" : "Enviar o próximo"}
-          </button>
+          {estado.autoEnvio && estado.modo !== "pausado" ? null : (
+            <button
+              type="button"
+              disabled={
+                pending ||
+                !zapiReady ||
+                counts.filaWhatsapp === 0 ||
+                estado.modo === "pausado" ||
+                (estado.modo === "piloto" &&
+                  estado.pilotoEnviados >= estado.pilotoLimite)
+              }
+              onClick={onWhatsappPendentes}
+              className="rounded-full bg-green px-5 py-2.5 text-sm font-bold text-white hover:bg-green-mid disabled:opacity-70"
+            >
+              {pending ? "Ligando…" : "Iniciar envio"}
+            </button>
+          )}
           {estado.modo !== "liberado" ? (
             <button
               type="button"

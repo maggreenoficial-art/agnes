@@ -25,6 +25,7 @@ function mapFila(row: {
   piloto_enviados?: number;
   ultimo_envio_em?: string | null;
   proximo_intervalo_seg?: number;
+  auto_envio?: boolean;
 }): WhatsappFilaEstado {
   const modo = parseModo(row.modo) ?? "piloto";
   const ultimo = row.ultimo_envio_em ?? null;
@@ -40,6 +41,7 @@ function mapFila(row: {
     ultimoEnvioEm: ultimo,
     proximoIntervaloSeg: intervalo,
     esperaSeg: Math.max(0, intervalo - elapsed),
+    autoEnvio: Boolean(row.auto_envio),
     sqlMissing: false,
   };
 }
@@ -75,6 +77,7 @@ export async function getWhatsappFilaEstado(
       ultimoEnvioEm: last,
       proximoIntervaloSeg: 300,
       esperaSeg: Math.max(0, 300 - elapsed),
+      autoEnvio: false,
       sqlMissing: true,
     };
   }
@@ -85,6 +88,7 @@ export async function getWhatsappFilaEstado(
     piloto_enviados?: number;
     ultimo_envio_em?: string | null;
     proximo_intervalo_seg?: number;
+    auto_envio?: boolean;
   });
 }
 
@@ -134,6 +138,30 @@ export async function desmarcarWhatsappLeads(ids: string[]) {
     return { n: 0, error: error.message };
   }
   return { n: Number(data) || 0 };
+}
+
+export async function setWhatsappAuto(auto: boolean) {
+  const { error } = await supabase.rpc("admin_whatsapp_set_auto", {
+    p_secret: getAdminSecret(),
+    p_auto: auto,
+  });
+  if (error) {
+    if (rpcMissing(error)) return { error: "sql-missing" as const };
+    return { error: error.message };
+  }
+  return {};
+}
+
+export async function claimWhatsappTick() {
+  const { data, error } = await supabase.rpc("admin_whatsapp_claim_tick", {
+    p_secret: getAdminSecret(),
+  });
+  if (error) {
+    if (rpcMissing(error)) return { claimed: false, sqlMissing: true as const };
+    return { claimed: false, error: error.message };
+  }
+  const row = (data ?? {}) as { claimed?: boolean };
+  return { claimed: Boolean(row.claimed) };
 }
 
 export async function registrarMensagemWhatsapp(options: {

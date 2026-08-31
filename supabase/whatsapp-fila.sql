@@ -362,3 +362,165 @@ $$;
 
 revoke all on function public.admin_whatsapp_desmarcar(text, uuid[]) from public;
 grant execute on function public.admin_whatsapp_desmarcar(text, uuid[]) to anon, authenticated;
+
+-- Envio automático: continua mesmo com o painel fechado.
+alter table public.whatsapp_fila
+  add column if not exists auto_envio boolean not null default false;
+alter table public.whatsapp_fila
+  add column if not exists tick_lock_em timestamptz;
+
+create or replace function public.admin_whatsapp_fila(p_secret text)
+returns json
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  fila public.whatsapp_fila;
+begin
+  if not exists (
+    select 1 from public.admin_settings
+    where id = 1 and secret = p_secret
+  ) then
+    raise exception 'unauthorized' using errcode = '42501';
+  end if;
+
+  select * into fila from public.whatsapp_fila where id = 1;
+  return json_build_object(
+    'modo', fila.modo,
+    'modo_antes_pausa', fila.modo_antes_pausa,
+    'piloto_limite', fila.piloto_limite,
+    'piloto_enviados', fila.piloto_enviados,
+    'ultimo_envio_em', fila.ultimo_envio_em,
+    'proximo_intervalo_seg', fila.proximo_intervalo_seg,
+    'auto_envio', fila.auto_envio
+  );
+end;
+$$;
+
+create or replace function public.admin_whatsapp_set_modo(
+  p_secret text,
+  p_modo text
+)
+returns json
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  fila public.whatsapp_fila;
+begin
+  if not exists (
+    select 1 from public.admin_settings
+    where id = 1 and secret = p_secret
+  ) then
+    raise exception 'unauthorized' using errcode = '42501';
+  end if;
+
+  if p_modo not in ('piloto', 'liberado', 'pausado') then
+    raise exception 'invalid mode' using errcode = '22023';
+  end if;
+
+  update public.whatsapp_fila
+    set
+      modo_antes_pausa = case
+        when p_modo = 'pausado' and modo <> 'pausado' then modo
+        when p_modo = 'pausado' then modo_antes_pausa
+        else null
+      end,
+      auto_envio = case
+        when p_modo = 'pausado' then false
+        else auto_envio
+      end,
+      modo = p_modo
+  where id = 1
+  returning * into fila;
+
+  return json_build_object(
+    'modo', fila.modo,
+    'auto_envio', fila.auto_envio,
+    'piloto_limite', fila.piloto_limite,
+    'piloto_enviados', fila.piloto_enviados,
+    'ultimo_envio_em', fila.ultimo_envio_em,
+    'proximo_intervalo_seg', fila.proximo_intervalo_seg
+  );
+end;
+$$;
+
+create or replace function public.admin_whatsapp_set_auto(
+  p_secret text,
+  p_auto boolean
+)
+returns json
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  fila public.whatsapp_fila;
+begin
+  if not exists (
+    select 1 from public.admin_settings
+    where id = 1 and secret = p_secret
+  ) then
+    raise exception 'unauthorized' using errcode = '42501';
+  end if;
+
+  update public.whatsapp_fila
+    set auto_envio = coalesce(p_auto, false)
+  where id = 1
+    and modo <> 'pausado'
+  returning * into fila;
+
+  if not found then
+    select * into fila from public.whatsapp_fila where id = 1;
+  end if;
+
+  return json_build_object(
+    'modo', fila.modo,
+    'auto_envio', fila.auto_envio
+  );
+end;
+$$;
+
+create or replace function public.admin_whatsapp_claim_tick(p_secret text)
+returns json
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  fila public.whatsapp_fila;
+begin
+  if not exists (
+    select 1 from public.admin_settings
+    where id = 1 and secret = p_secret
+  ) then
+    raise exception 'unauthorized' using errcode = '42501';
+  end if;
+
+  update public.whatsapp_fila
+    set tick_lock_em = now()
+  where id = 1
+    and auto_envio = true
+    and modo in ('piloto', 'liberado')
+    and not (modo = 'piloto' and piloto_enviados >= piloto_limite)
+    and (tick_lock_em is null or tick_lock_em < now() - interval '50 seconds')
+    and (
+      ultimo_envio_em is null
+      or ultimo_envio_em + make_interval(secs => greatest(proximo_intervalo_seg, 120)) <= now()
+    )
+  returning * into fila;
+
+  if not found then
+    return json_build_object('claimed', false);
+  end if;
+
+  return json_build_object('claimed', true);
+end;
+$$;
+
+revoke all on function public.admin_whatsapp_set_auto(text, boolean) from public;
+revoke all on function public.admin_whatsapp_claim_tick(text) from public;
+grant execute on function public.admin_whatsapp_set_auto(text, boolean) to anon, authenticated;
+grant execute on function public.admin_whatsapp_claim_tick(text) to anon, authenticated;
